@@ -95,6 +95,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, file.read_bytes(), content_type=mime + '; charset=utf-8')
         if method == 'GET' and path == '/health':
             return self.send(200, {'status': 'ok'})
+        if method == 'GET' and path == '/api/registration/profiles':
+            return self.send(200, {'profiles': self.server.store.available_profiles()})
         if method == 'POST':
             origin = self.headers.get('Origin')
             if origin and origin != 'http://' + self.headers.get('Host', ''):
@@ -118,6 +120,18 @@ class Handler(BaseHTTPRequestHandler):
                 self.server.sessions = {k: v for k, v in self.server.sessions.items() if v['expires'] > now}
                 self.server.sessions[token] = {'user': user, 'csrf': csrf, 'expires': now + 8 * 3600}
             return self.send(200, {'user': user, 'csrf': csrf}, 'cq_session=' + token + '; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800')
+        if method == 'POST' and path == '/api/register':
+            payload = self.body()
+            user = self.server.store.register(
+                payload.get('username'), payload.get('password'), payload.get('role'),
+                payload.get('employee_id'), payload.get('invite_code', ''),
+            )
+            now = time.time()
+            token, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(24)
+            with self.server.store.lock:
+                self.server.sessions = {k: v for k, v in self.server.sessions.items() if v['expires'] > now}
+                self.server.sessions[token] = {'user': user, 'csrf': csrf, 'expires': now + 8 * 3600}
+            return self.send(201, {'user': user, 'csrf': csrf}, 'cq_session=' + token + '; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800')
         token, session = self.session()
         if method == 'POST' and not secrets.compare_digest(self.headers.get('X-CSRF-Token', ''), session['csrf']):
             raise Problem(403, 'Недействительный CSRF-токен')
@@ -128,17 +142,20 @@ class Handler(BaseHTTPRequestHandler):
                 self.server.sessions.pop(token, None)
             return self.send(200, {'ok': True}, 'cq_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')
         if method == 'GET' and path in ('/employees', '/api/employees'):
-            with self.server.store.lock:
-                employees = self.server.store.employees() if session['user']['role'] == 'hr' else [self.server.store.employee(session['user']['employee_id'])]
-                briefs = [{k: e[k] for k in ('employee_id', 'full_name', 'role', 'grade', 'department')} for e in employees]
-            return self.send(200, briefs)
+            employee_ids = None if session['user']['role'] == 'hr' else [session['user']['employee_id']]
+            return self.send(200, self.server.store.employee_rows(employee_ids))
         if method == 'GET' and path == '/api/hr/summary':
             self.permission(session, hr=True)
             return self.send(200, self.server.store.hr_summary())
-        if method == 'POST' and path == '/api/import':
+        if method == 'POST' and path in ('/api/import', '/api/datasets/upload'):
             self.permission(session, hr=True)
-            return self.send(200, self.server.store.import_data(self.body()))
-        match = re.fullmatch(r'/(?:api/)?employees/([^/]+)(?:/(recommendations|complete|explanations))?', path)
+            payload = self.body()
+            if path == '/api/datasets/upload':
+                missing = {'employees', 'events', 'skills', 'activity_history'} - set(payload)
+                if missing:
+                    raise Problem(422, 'Для загрузки набора нужны файлы: employees.json, events.json, skills.json и activity_history.csv')
+            return self.send(200, self.server.store.import_data(payload))
+        match = re.fullmatch(r'/(?:api/)?employees/([^/]+)(?:/(history|recommendations|complete|explanations))?', path)
         if match:
             employee_id, action = match.groups()
             self.permission(session, employee_id)
@@ -146,6 +163,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, self.server.store.profile(employee_id))
             if method == 'GET' and action == 'recommendations':
                 return self.send(200, self.server.store.recommendations(employee_id))
+            if method == 'GET' and action == 'history':
+                return self.send(200, self.server.store.history_payload(employee_id))
             if method == 'POST' and action == 'complete':
                 payload = self.body()
                 if not isinstance(payload.get('event_id'), str):

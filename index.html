@@ -15,7 +15,19 @@
       <label>Логин<input name="username" id="username" autocomplete="username" required placeholder="E0002 или hr"></label>
       <label>Пароль<input name="password" id="password" type="password" autocomplete="current-password" required></label>
       <button class="primary-button" type="submit">Войти →</button><p id="login-error" class="error" role="alert"></p>
+      <p class="auth-switch">Нет аккаунта? <button id="show-register" class="text-button" type="button">Зарегистрироваться</button></p>
       <p class="muted">Учебный стенд хакатона. Доступы находятся у организатора вашего запуска. Все профили в наборе синтетические.</p>
+    </form>
+    <form id="register-form" class="panel login-form hidden">
+      <div class="eyebrow">CAREER QUEST</div><h2>Создать аккаунт</h2><p class="subtitle">Привяжите аккаунт сотрудника к своему профилю или зарегистрируйте доступ HR.</p>
+      <label>Логин<input name="username" autocomplete="username" minlength="3" maxlength="50" pattern="[A-Za-z0-9_.-]+" required></label>
+      <label>Пароль<input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="200" required></label>
+      <label>Роль<select id="register-role" name="role" required><option value="employee">Сотрудник</option><option value="hr">HR</option></select></label>
+      <label id="register-profile-field">Профиль сотрудника<select id="register-employee-id" name="employee_id" required><option value="">Загружаем свободные профили…</option></select></label>
+      <label id="register-invite-field" class="hidden">Код приглашения HR<input name="invite_code" type="password" autocomplete="off"></label>
+      <button class="primary-button" type="submit">Зарегистрироваться →</button><p id="register-error" class="error" role="alert"></p>
+      <p class="auth-switch">Уже есть аккаунт? <button id="show-login" class="text-button" type="button">Войти</button></p>
+      <p class="muted">Аккаунты и пароли сохраняются в локальной SQLite-базе. Повторно использовать профиль нельзя.</p>
     </form>
   </section>
   <div id="workspace" class="hidden">
@@ -43,8 +55,8 @@
       <section id="hr-view" class="view hidden">
         <div class="welcome-row"><div><div class="eyebrow"><span class="live-dot"></span> ПОДДЕРЖКА РАЗВИТИЯ</div><h1>Обзор команды <span class="wave">✳</span></h1><p class="subtitle">Где нужна помощь и каких возможностей не хватает.</p></div><button id="refresh-hr" class="period-button">Обновить</button></div>
         <div id="hr-content"></div>
-        <article class="panel import-panel"><div class="eyebrow">ПРОВЕРОЧНЫЕ ДАННЫЕ</div><h2>Загрузить профили и историю</h2><p>JSON сотрудников и CSV истории в формате стартового kit. Новые ID добавляются, существующие профили обновляются после проверки. История объединяется по record_id. Только синтетические данные хакатона.</p>
-          <form id="import-form"><label>employees.json<input id="employees-file" type="file" accept=".json,application/json"></label><label>activity_history.csv<input id="history-file" type="file" accept=".csv,text/csv"></label><details class="paste-import"><summary>Или вставить содержимое файлов</summary><label>JSON профилей<textarea id="employees-text" rows="6" placeholder='{"employees": [...]}'></textarea></label><label>CSV истории<textarea id="history-text" rows="5" placeholder="record_id,employee_id,event_id,date,status,..."></textarea></label></details><button class="primary-button" type="submit">Проверить и импортировать</button></form><p id="import-status" role="status"></p></article>
+        <article class="panel import-panel"><div class="eyebrow">ПРОВЕРОЧНЫЕ ДАННЫЕ</div><h2>Загрузить набор данных</h2><p>Можно загрузить весь набор или только сотрудников и историю для проверки. Повторный импорт безопасен: история объединяется по record_id. Каталоги событий и навыков должны использовать текущую дату среза и оставаться совместимыми с уже сохранёнными профилями.</p>
+          <form id="import-form"><label>employees.json<input id="employees-file" type="file" accept=".json,application/json"></label><label>events.json<input id="events-file" type="file" accept=".json,application/json"></label><label>skills.json<input id="skills-file" type="file" accept=".json,application/json"></label><label>activity_history.csv<input id="history-file" type="file" accept=".csv,text/csv"></label><details class="paste-import"><summary>Или вставить содержимое файлов</summary><label>JSON профилей<textarea id="employees-text" rows="6" placeholder='{"employees": [...]}'></textarea></label><label>JSON каталога событий<textarea id="events-text" rows="6" placeholder='{"events": [...]}'></textarea></label><label>JSON каталога навыков<textarea id="skills-text" rows="6" placeholder='{"skills": [...], "role_profiles": [...]}'></textarea></label><label>CSV истории<textarea id="history-text" rows="5" placeholder="record_id,employee_id,event_id,date,status,..."></textarea></label></details><button class="primary-button" type="submit">Проверить и импортировать</button></form><p id="import-status" role="status"></p></article>
         <footer>Данные доступны только HR. Публичных рейтингов сотрудников нет.</footer>
       </section>
     </main>

@@ -58,11 +58,13 @@ class AppTests(unittest.TestCase):
 
     def test_access_control_and_static_allowlist(self):
         self.assertEqual(self.request('GET','/api/employees/E0002')[0],401)
+        self.assertEqual(self.request('GET','/api/registration/profiles')[0],200)
         employee = self.login('E0002')
         self.assertEqual(self.request('GET','/api/employees/E0002',auth=employee)[0],200)
         for path in ['/api/employees/E0004','/employees/E0004/recommendations','/api/hr/summary']:
             self.assertEqual(self.request('GET',path,auth=employee)[0],403)
         self.assertEqual(self.request('POST','/api/import',{},employee)[0],403)
+        self.assertEqual(self.request('POST','/api/datasets/upload',{},employee)[0],403)
         self.assertEqual(self.request('POST','/api/employees/E0004/complete',{'event_id':'EV_026'},employee)[0],403)
         status, listed, _ = self.request('GET','/api/employees',auth=employee)
         self.assertEqual([e['employee_id'] for e in listed],['E0002'])
@@ -225,6 +227,73 @@ class AppTests(unittest.TestCase):
                   'JURY_B':['EV_026','EV_021','EV_027'], 'JURY_C':[]}
         for eid, ids in expected.items():
             self.assertEqual([r['event_id'] for r in self.store.recommendations(eid)],ids)
+
+    def test_employee_history_route_and_enriched_directory(self):
+        hr = self.login('hr')
+        status, history, _ = self.request('GET', '/api/employees/E0002/history', auth=hr)
+        self.assertEqual(status, 200)
+        self.assertEqual(history, self.store.history_payload('E0002'))
+        status, rows, _ = self.request('GET', '/api/employees', auth=hr)
+        self.assertEqual(status, 200)
+        self.assertEqual(len(rows), len(self.store.employees()))
+        required = {'has_recommendation', 'last_activity', 'main_skill_gap',
+                    'development_status', 'progress_pct'}
+        self.assertTrue(required.issubset(rows[0]))
+        employee = self.login('E0002')
+        status, own_rows, _ = self.request('GET', '/api/employees', auth=employee)
+        self.assertEqual(status, 200)
+        self.assertEqual([row['employee_id'] for row in own_rows], ['E0002'])
+        self.assertEqual(self.request('GET', '/api/employees/E0004/history', auth=employee)[0], 403)
+
+    def test_registration_links_employee_and_requires_hr_invite(self):
+        status, available, _ = self.request('GET', '/api/registration/profiles')
+        self.assertEqual(status, 200)
+        self.assertNotIn('E0002', [p['employee_id'] for p in available['profiles']])
+        employee_id = available['profiles'][0]['employee_id']
+        status, session, cookie = self.request('POST', '/api/register', {
+            'username': 'signup_employee', 'password': 'test-password-123',
+            'role': 'employee', 'employee_id': employee_id,
+        })
+        self.assertEqual(status, 201)
+        self.assertIn('HttpOnly', cookie)
+        self.assertEqual(session['user']['employee_id'], employee_id)
+        employee_auth = (cookie.split(';')[0], session['csrf'])
+        self.assertEqual(self.request('GET', f'/api/employees/{employee_id}', auth=employee_auth)[0], 200)
+        self.assertEqual(self.request('POST', '/api/register', {
+            'username': 'second_account', 'password': 'test-password-123',
+            'role': 'employee', 'employee_id': employee_id,
+        })[0], 409)
+        self.assertEqual(self.request('POST', '/api/register', {
+            'username': 'signup_hr_bad', 'password': 'test-password-123',
+            'role': 'hr', 'invite_code': 'wrong-code',
+        })[0], 403)
+        with patch.dict('os.environ', {'CAREER_QUEST_HR_REGISTRATION_CODE': 'test-invite-code'}):
+            status, hr_session, hr_cookie = self.request('POST', '/api/register', {
+                'username': 'signup_hr_good', 'password': 'test-password-123',
+                'role': 'hr', 'invite_code': 'test-invite-code',
+            })
+        self.assertEqual(status, 201)
+        hr_auth = (hr_cookie.split(';')[0], hr_session['csrf'])
+        self.assertEqual(self.request('GET', '/api/hr/summary', auth=hr_auth)[0], 200)
+
+    def test_four_file_dataset_upload_is_atomic_and_repeatable(self):
+        from Backend.store import ROOT
+        hr = self.login('hr')
+        employee_file = json.loads((ROOT / 'docs/jury-sample/employees.json').read_text(encoding='utf-8'))
+        history_file = (ROOT / 'docs/jury-sample/activity_history.csv').read_text(encoding='utf-8')
+        event_file = {'meta': {'as_of_date': self.store.as_of}, 'events': self.store.events}
+        payload = {'employees': employee_file, 'events': event_file,
+                   'skills': self.store.skills, 'activity_history': history_file}
+        status, result, _ = self.request('POST', '/api/datasets/upload', payload, hr)
+        self.assertEqual(status, 200)
+        self.assertEqual(result['events_received'], len(self.store.events))
+        self.assertEqual(result['skills_received'], len(self.store.skills['skills']))
+        before = {eid: len(self.store.history(eid)) for eid in ('JURY_A', 'JURY_B', 'JURY_C')}
+        self.assertEqual(self.request('POST', '/api/datasets/upload', payload, hr)[0], 200)
+        self.assertEqual(before, {eid: len(self.store.history(eid)) for eid in before})
+        bad_payload = {**payload, 'events': {'meta': event_file['meta'], 'events': self.store.events + [self.store.events[0]]}}
+        self.assertEqual(self.request('POST', '/api/datasets/upload', bad_payload, hr)[0], 422)
+        self.assertEqual(before, {eid: len(self.store.history(eid)) for eid in before})
 
 
 if __name__=='__main__': unittest.main()
