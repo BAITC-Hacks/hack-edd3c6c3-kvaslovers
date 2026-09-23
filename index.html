@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f6f7f4"><title>Career Quest — развитие с понятной целью</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <section id="login-view" class="login-shell">
+    <div class="login-intro"><a class="brand" href="/"><span class="brand-mark">cq</span><span>career<span class="brand-light">quest</span></span></a>
+      <div class="eyebrow">ВАШ СЛЕДУЮЩИЙ ШАГ</div><h1>Рост, который<br>видно.</h1><p>Понятная цель. Подходящая активность.<br>Каждый шаг приближает к новым возможностям.</p>
+      <div class="login-path"><span>Навыки</span><span>→</span><span>Развитие</span><span>→</span><span>Новая роль</span></div>
+    </div>
+    <form id="login-form" class="panel login-form"><div class="eyebrow">CAREER QUEST</div><h2>Войти в пространство</h2><p class="subtitle">Личный путь развития и поддержка команды.</p>
+      <label>Логин<input name="username" id="username" autocomplete="username" required placeholder="E0002 или hr"></label>
+      <label>Пароль<input name="password" id="password" type="password" autocomplete="current-password" required></label>
+      <button class="primary-button" type="submit">Войти →</button><p id="login-error" class="error" role="alert"></p>
+      <p class="auth-switch">Нет аккаунта? <button id="show-register" class="text-button" type="button">Зарегистрироваться</button></p>
+      <p class="muted">Учебный стенд хакатона. Доступы находятся у организатора вашего запуска. Все профили в наборе синтетические.</p>
+    </form>
+    <form id="register-form" class="panel login-form hidden">
+      <div class="eyebrow">CAREER QUEST</div><h2>Создать аккаунт</h2><p class="subtitle">Сотруднику понадобится персональное приглашение от HR. Доступ HR выдаётся по коду организации.</p>
+      <label>Логин<input name="username" autocomplete="username" minlength="3" maxlength="50" pattern="[A-Za-z0-9_.-]+" required></label>
+      <label>Пароль<input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="200" required></label>
+      <label>Роль<select id="register-role" name="role" required><option value="employee">Сотрудник</option><option value="hr">HR</option></select></label>
+      <label id="register-employee-invite-field">Персональное приглашение сотрудника<input name="employee_invite" type="password" autocomplete="one-time-code" required></label>
+      <label id="register-invite-field" class="hidden">Код приглашения HR<input name="invite_code" type="password" autocomplete="one-time-code"></label>
+      <button class="primary-button" type="submit">Зарегистрироваться →</button><p id="register-error" class="error" role="alert"></p>
+      <p class="auth-switch">Уже есть аккаунт? <button id="show-login" class="text-button" type="button">Войти</button></p>
+      <p class="muted">Приглашение сотрудника одноразовое и привязано к одному профилю. Попросите HR создать его в обзоре команды.</p>
+    </form>
+  </section>
+  <div id="workspace" class="hidden">
+    <aside class="sidebar">
+      <a class="brand" href="/"><span class="brand-mark">cq</span><span>career<span class="brand-light">quest</span></span></a>
+      <div class="workspace-label">ПРОСТРАНСТВО</div>
+      <nav><button class="nav-item active" data-view="employee" aria-label="Мой рост"><span class="nav-icon">◫</span><span>Мой рост</span></button><button id="hr-nav" class="nav-item hidden" data-view="hr" aria-label="Обзор команды"><span class="nav-icon">▥</span><span>Обзор команды</span><span class="nav-badge">HR</span></button></nav>
+      <div class="sidebar-bottom"><div class="help-card"><div class="help-icon">✦</div><strong>Следующая глава<br>начинается с шага.</strong><p>Развитие — добровольный выбор. Рекомендации помогают найти подходящий путь.</p></div><div class="user-mini"><div id="user-avatar" class="avatar">CQ</div><div><strong id="session-name"></strong><small id="session-role"></small></div></div><button id="logout" class="text-button">Выйти →</button></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div class="breadcrumb">Пространство <span>/</span><b id="crumb">Мой рост</b></div><div class="top-actions"><span id="snapshot-date" class="muted"></span><button id="mobile-logout" class="text-button">Выйти</button></div></header>
+      <p id="global-error" role="alert" class="error hidden"></p>
+      <section id="employee-view" class="view">
+        <div class="welcome-row"><div><div class="eyebrow"><span class="live-dot"></span> ПОНЯТНЫЙ ПУТЬ ВПЕРЁД</div><h1 id="employee-name">Загружаем профиль…</h1><p id="employee-role" class="subtitle"></p></div>
+          <label id="employee-picker-label" class="hidden picker">Профиль сотрудника<select id="employee-picker" aria-label="Профиль сотрудника"></select></label></div>
+        <div id="profile-content" class="hidden">
+          <div class="hero-card"><div class="hero-copy"><div class="hero-label">ВАША КАРЬЕРНАЯ ТРАЕКТОРИЯ</div><div class="career-line"><span id="current-grade" class="career-current"></span><span class="line-track"><i></i><b>✦</b></span><span id="target-grade" class="career-next"></span></div><p id="target-role" class="hero-target"></p><div class="hero-foot"><span>Покрытие требований целевой роли</span><strong id="trajectory-percent"></strong></div><div class="progress-track"><i id="trajectory-bar"></i></div></div><div class="hero-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit-core">✦</div><span class="art-star star-one">✳</span><span class="art-star star-two">✦</span></div></div>
+          <div class="section-heading"><div><div class="eyebrow">ВАШИ ВОЗМОЖНОСТИ</div><h2>Навыки и следующий шаг</h2></div></div>
+          <div class="snapshot-grid"><article class="panel skills-panel"><div class="panel-head"><div><h3>Карта навыков</h3><p id="skill-caption"></p></div></div><div id="skills-list"></div><p id="progress-formula" class="panel-note"></p></article>
+            <section><div id="recommendation-list" aria-live="polite"></div><button id="llm-button" class="text-button">Дополнить объяснение локальной LLM →</button><p id="llm-status" class="muted" role="status"></p></section></div>
+          <div class="section-heading recent-heading"><div><div class="eyebrow">ИСТОРИЯ ВАШЕГО ПУТИ</div><h2>Участие в активностях</h2></div><span id="history-count" class="muted"></span></div><div class="panel activity-list" id="history-list"></div>
+          <footer>Career Quest · Прогресс показывает покрытие навыков, не гарантирует повышение. Учебный срез: <span id="simulation-date"></span>.</footer>
+        </div>
+      </section>
+      <section id="hr-view" class="view hidden">
+        <div class="welcome-row"><div><div class="eyebrow"><span class="live-dot"></span> ПОДДЕРЖКА РАЗВИТИЯ</div><h1>Обзор команды <span class="wave">✳</span></h1><p class="subtitle">Где нужна помощь и каких возможностей не хватает.</p></div><button id="refresh-hr" class="period-button">Обновить</button></div>
+        <div id="hr-content"></div>
+        <article class="panel import-panel"><div class="eyebrow">ПРОВЕРОЧНЫЕ ДАННЫЕ</div><h2>Загрузить набор данных</h2><p>Можно загрузить весь набор или только сотрудников и историю для проверки. Повторный импорт безопасен: история объединяется по record_id. Каталоги событий и навыков должны использовать текущую дату среза и оставаться совместимыми с уже сохранёнными профилями.</p>
+          <form id="import-form"><label>employees.json<input id="employees-file" type="file" accept=".json,application/json"></label><label>events.json<input id="events-file" type="file" accept=".json,application/json"></label><label>skills.json<input id="skills-file" type="file" accept=".json,application/json"></label><label>activity_history.csv<input id="history-file" type="file" accept=".csv,text/csv"></label><details class="paste-import"><summary>Или вставить содержимое файлов</summary><label>JSON профилей<textarea id="employees-text" rows="6" placeholder='{"employees": [...]}'></textarea></label><label>JSON каталога событий<textarea id="events-text" rows="6" placeholder='{"events": [...]}'></textarea></label><label>JSON каталога навыков<textarea id="skills-text" rows="6" placeholder='{"skills": [...], "role_profiles": [...]}'></textarea></label><label>CSV истории<textarea id="history-text" rows="5" placeholder="record_id,employee_id,event_id,date,status,..."></textarea></label></details><button class="primary-button" type="submit">Проверить и импортировать</button></form><p id="import-status" role="status"></p></article>
+        <footer>Данные доступны только HR. Публичных рейтингов сотрудников нет.</footer>
+      </section>
+    </main>
+  </div><div id="toast" role="status" class="toast"></div><script src="/app.js"></script>
+</body></html>

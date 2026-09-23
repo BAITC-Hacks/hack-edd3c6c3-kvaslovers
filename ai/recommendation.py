@@ -45,9 +45,11 @@ def recommend(employee, events, skills, history, *, as_of_date=None, limit=3):
     today = _date(as_of_date or skills["meta"]["as_of_date"])
     if not isinstance(today, date):
         raise ValueError("as_of_date must be an ISO date or datetime.date")
-    review = _date(employee["last_review_date"])
+    review = _date(employee.get("skill_snapshot_date", employee["last_review_date"]))
     if review > today:
-        raise ValueError("last_review_date is after as_of_date")
+        raise ValueError("Skill snapshot is after as_of_date")
+    if review < _date(employee["last_review_date"]):
+        raise ValueError("Skill snapshot precedes last_review_date")
     catalog = events["events"] if isinstance(events, dict) else events
     events_by_id = _index(catalog, "event_id")
     skill_names = {sid: item["name"] for sid, item in _index(skills["skills"], "skill_id").items()}
@@ -142,6 +144,13 @@ def recommend(employee, events, skills, history, *, as_of_date=None, limit=3):
             continue
         if eid in completed and eid not in REPEATABLE_EVENTS:
             continue
+        if eid in REPEATABLE_EVENTS and any(
+            row["event_id"] == eid and row["status"] == "completed"
+            and _date(row["date"]) == today for row in relevant
+        ):
+            # One credited club participation per snapshot day; a retry must
+            # not offer the same completion again before the next session.
+            continue
         if latest_status.get(eid) == "in_progress":
             continue
         if any(levels.get(sid, 0) < need for sid, need in event["prerequisites"].items()):
@@ -157,7 +166,7 @@ def recommend(employee, events, skills, history, *, as_of_date=None, limit=3):
             if sid not in gaps or gain <= 0:
                 continue
             effects.append({"skill_id": sid, "name": skill_names[sid],
-                            "reviewed_level": employee["skills"].get(sid, 0),
+                            "reviewed_level": employee.get("reviewed_skills", employee["skills"]).get(sid, 0),
                             "current_level": current, "required_level": required[sid],
                             "gap": gaps[sid], "gain": effect["gain"],
                             "max_level": effect["max_level"], "effective_gain": gain,

@@ -1,0 +1,974 @@
+{
+  "as_of_date": "2026-10-01",
+  "cases": [
+    {
+      "case": "promotion",
+      "title": "Повышение: Backend Middle → Senior",
+      "employee": {
+        "employee_id": "E0002",
+        "full_name": "Arman Zhaksylykov",
+        "department": "Backend Development",
+        "role": "Backend Engineer",
+        "grade": "Middle",
+        "manager_id": "E0175",
+        "hire_date": "2023-04-25",
+        "tenure_months": 41,
+        "work_format": "remote",
+        "preferred_language": "ru",
+        "career_goal": {
+          "target_role": "Backend Engineer",
+          "target_grade": "Senior"
+        },
+        "skills": {
+          "SK_PYTHON": 3,
+          "SK_SQL": 3,
+          "SK_API_DESIGN": 1,
+          "SK_SYSTEM_DESIGN": 1,
+          "SK_CLOUD": 2,
+          "SK_CONTAINERS": 1,
+          "SK_CICD": 2,
+          "SK_APP_SECURITY": 2,
+          "SK_OBSERVABILITY": 2,
+          "SK_API_TESTING": 1,
+          "SK_PROSPECTING": 1,
+          "SK_COMMUNICATION": 2,
+          "SK_PUBLIC_SPEAKING": 1,
+          "SK_WRITTEN_COMMUNICATION": 1,
+          "SK_STAKEHOLDER_MGMT": 1,
+          "SK_LEADERSHIP": 1,
+          "SK_MENTORING": 1,
+          "SK_FEEDBACK": 2,
+          "SK_CONFLICT_RESOLUTION": 3,
+          "SK_TEAMWORK": 3,
+          "SK_EMOTIONAL_INTELLIGENCE": 2,
+          "SK_PROBLEM_SOLVING": 4,
+          "SK_CRITICAL_THINKING": 3,
+          "SK_TIME_MANAGEMENT": 3,
+          "SK_ADAPTABILITY": 1
+        },
+        "last_review_date": "2026-07-23"
+      },
+      "recommendations": [
+        {
+          "event_id": "EV_005",
+          "title": "System Design Fundamentals",
+          "score": 0.612,
+          "next_session": "2026-11-23",
+          "duration_hours": 16,
+          "factors": {
+            "current_role": "Backend Engineer",
+            "current_grade": "Middle",
+            "target_role": "Backend Engineer",
+            "target_grade": "Senior",
+            "target_source": "career_goal",
+            "as_of_date": "2026-10-01",
+            "skills": [
+              {
+                "skill_id": "SK_API_DESIGN",
+                "name": "API Design",
+                "reviewed_level": 1,
+                "current_level": 1,
+                "required_level": 4,
+                "gap": 3,
+                "gain": 1,
+                "max_level": 3,
+                "effective_gain": 1,
+                "gap_closed": 1,
+                "projected_level": 2,
+                "critical": true
+              },
+              {
+                "skill_id": "SK_SYSTEM_DESIGN",
+                "name": "System Design",
+                "reviewed_level": 1,
+                "current_level": 1,
+                "required_level": 4,
+                "gap": 3,
+                "gain": 1,
+                "max_level": 3,
+                "effective_gain": 1,
+                "gap_closed": 1,
+                "projected_level": 2,
+                "critical": true
+              }
+            ],
+            "history": {
+              "counts": {
+                "completed": 0,
+                "no_show": 0,
+                "dropped": 1,
+                "declined": 0,
+                "in_progress": 0,
+                "overdue": 0
+              },
+              "fit": 0.3333333333333333,
+              "signal": "negative"
+            },
+            "components": {
+              "grade_importance": 1.0,
+              "skill_gap": 0.6,
+              "event_impact": 0.16,
+              "history_fit": 0.3333333333333333
+            },
+            "contributions": {
+              "grade_importance": 0.35,
+              "skill_gap": 0.18,
+              "event_impact": 0.032,
+              "history_fit": 0.049999999999999996
+            },
+            "skill_adjustments": [
+              {
+                "record_id": "R002698",
+                "event_id": "EV_037",
+                "skill_id": "SK_MENTORING",
+                "date": "2026-09-11",
+                "before": 1,
+                "after": 2
+              },
+              {
+                "record_id": "R002698",
+                "event_id": "EV_037",
+                "skill_id": "SK_FEEDBACK",
+                "date": "2026-09-11",
+                "before": 2,
+                "after": 3
+              }
+            ]
+          },
+          "reason": "Цель: Backend Engineer, Senior. API Design: 1 → 2, требуется 4; разрыв 3, прирост +1; критичен для цели. System Design: 1 → 2, требуется 4; разрыв 3, прирост +1; критичен для цели. По связанным добровольным активностям: завершено 0, неявок 0, прекращено 1, отказов 0."
+        },
+        {
+          "event_id": "EV_011",
+          "title": "Secure Coding Workshop",
+          "score": 0.318,
+          "next_session": "2026-11-23",
+          "duration_hours": 6,
+          "factors": {
+            "current_role": "Backend Engineer",
+            "current_grade": "Middle",
+            "target_role": "Backend Engineer",
+            "target_grade": "Senior",
+            "target_source": "career_goal",
+            "as_of_date": "2026-10-01",
+            "skills": [
+              {
+                "skill_id": "SK_APP_SECURITY",
+                "name": "Application Security",
+                "reviewed_level": 2,
+                "current_level": 2,
+                "required_level": 3,
+                "gap": 1,
+                "gain": 1,
+                "max_level": 4,
+                "effective_gain": 1,
+                "gap_closed": 1,
+                "projected_level": 3,
+                "critical": false
+              }
+            ],
+            "history": {
+              "counts": {
+                "completed": 0,
+                "no_show": 0,
+                "dropped": 0,
+                "declined": 0,
+                "in_progress": 0,
+                "overdue": 0
+              },
+              "fit": 0.5,
+              "signal": "neutral"
+            },
+            "components": {
+              "grade_importance": 0.5,
+              "skill_gap": 0.2,
+              "event_impact": 0.04,
+              "history_fit": 0.5
+            },
+            "contributions": {
+              "grade_importance": 0.175,
+              "skill_gap": 0.06,
+              "event_impact": 0.008,
+              "history_fit": 0.075
+            },
+            "skill_adjustments": [
+              {
+                "record_id": "R002698",
+                "event_id": "EV_037",
+                "skill_id": "SK_MENTORING",
+                "date": "2026-09-11",
+                "before": 1,
+                "after": 2
+              },
+              {
+                "record_id": "R002698",
+                "event_id": "EV_037",
+                "skill_id": "SK_FEEDBACK",
+                "date": "2026-09-11",
+                "before": 2,
+                "after": 3
+              }
+            ]
+          },
+          "reason": "Цель: Backend Engineer, Senior. Application Security: 2 → 3, требуется 3; разрыв 1, прирост +1. По связанным добровольным активностям: завершено 0, неявок 0, прекращено 0, отказов 0."
+        },
+        {
+          "event_id": "EV_036",
+          "title": "Public Speaking Club",
+          "score": 0.318,
+          "next_session": "2026-10-08",
+          "duration_hours": 2,
+          "factors": {
+            "current_role": "Backend Engineer",
+            "current_grade": "Middle",
+            "target_role": "Backend Engineer",
+            "target_grade": "Senior",
+            "target_source": "career_goal",
+            "as_of_date": "2026-10-01",
+            "skills": [
+              {
+                "skill_id": "SK_PUBLIC_SPEAKING",
+                "name": "Public Speaking",
+                "reviewed_level": 1,
+                "current_level": 1,
+                "required_level": 2,
+                "gap": 1,
+                "gain": 1,
+                "max_level": 4,
+                "effective_gain": 1,
+                "gap_closed": 1,
+                "projected_level": 2,
+                "critical": false
+              }
+            ],
+            "history": {
+              "counts": {
+                "completed": 0,
+                "no_show": 0,
+                "dropped": 0,
+                "declined": 0,
+                "in_progress": 0,
+                "overdue": 0
+              },
+              "fit": 0.5,
+              "signal": "neutral"
+            },
+            "components": {
+              "grade_importance": 0.5,
+              "skill_gap": 0.2,
+              "event_impact": 0.04,
+              "history_fit": 0.5
+            },
+            "contributions": {
+              "grade_importance": 0.175,
+              "skill_gap": 0.06,
+              "event_impact": 0.008,
+              "history_fit": 0.075
+            },
+            "skill_adjustments": [
+              {
+                "record_id": "R002698",
+                "event_id": "EV_037",
+                "skill_id": "SK_MENTORING",
+                "date": "2026-09-11",
+                "before": 1,
+                "after": 2
+              },
+              {
+                "record_id": "R002698",
+                "event_id": "EV_037",
+                "skill_id": "SK_FEEDBACK",
+                "date": "2026-09-11",
+                "before": 2,
+                "after": 3
+              }
+            ]
+          },
+          "reason": "Цель: Backend Engineer, Senior. Public Speaking: 1 → 2, требуется 2; разрыв 1, прирост +1. По связанным добровольным активностям: завершено 0, неявок 0, прекращено 0, отказов 0."
+        }
+      ]
+    },
+    {
+      "case": "career_change",
+      "title": "Смена профессии: Data Analyst → Product Manager",
+      "employee": {
+        "employee_id": "E0004",
+        "full_name": "Nikita Smirnov",
+        "department": "Data & Analytics",
+        "role": "Data Analyst",
+        "grade": "Middle",
+        "manager_id": "E0061",
+        "hire_date": "2021-10-21",
+        "tenure_months": 59,
+        "work_format": "office",
+        "preferred_language": "ru",
+        "career_goal": {
+          "target_role": "Product Manager",
+          "target_grade": "Middle"
+        },
+        "skills": {
+          "SK_PYTHON": 3,
+          "SK_SQL": 4,
+          "SK_API_TESTING": 1,
+          "SK_STATISTICS": 2,
+          "SK_AB_TESTING": 2,
+          "SK_DATA_VIZ": 2,
+          "SK_BI_TOOLS": 2,
+          "SK_DATA_MODELING": 1,
+          "SK_ML_BASICS": 2,
+          "SK_PRODUCT_ANALYTICS": 2,
+          "SK_PROSPECTING": 2,
+          "SK_COMMUNICATION": 3,
+          "SK_PUBLIC_SPEAKING": 1,
+          "SK_WRITTEN_COMMUNICATION": 3,
+          "SK_STAKEHOLDER_MGMT": 2,
+          "SK_LEADERSHIP": 2,
+          "SK_MENTORING": 0,
+          "SK_FEEDBACK": 1,
+          "SK_CONFLICT_RESOLUTION": 2,
+          "SK_TEAMWORK": 3,
+          "SK_EMOTIONAL_INTELLIGENCE": 2,
+          "SK_PROBLEM_SOLVING": 3,
+          "SK_CRITICAL_THINKING": 2,
+          "SK_TIME_MANAGEMENT": 1,
+          "SK_ADAPTABILITY": 1
+        },
+        "last_review_date": "2026-01-12"
+      },
+      "recommendations": [
+        {
+          "event_id": "EV_026",
+          "title": "Product Discovery Lab",
+          "score": 0.6413636363636364,
+          "next_session": "2026-11-10",
+          "duration_hours": 8,
+          "factors": {
+            "current_role": "Data Analyst",
+            "current_grade": "Middle",
+            "target_role": "Product Manager",
+            "target_grade": "Middle",
+            "target_source": "career_goal",
+            "as_of_date": "2026-10-01",
+            "skills": [
+              {
+                "skill_id": "SK_PRODUCT_DISCOVERY",
+                "name": "Product Discovery",
+                "reviewed_level": 0,
+                "current_level": 0,
+                "required_level": 3,
+                "gap": 3,
+                "gain": 1,
+                "max_level": 5,
+                "effective_gain": 1,
+                "gap_closed": 1,
+                "projected_level": 1,
+                "critical": true
+              },
+              {
+                "skill_id": "SK_REQUIREMENTS",
+                "name": "Requirements Writing",
+                "reviewed_level": 0,
+                "current_level": 0,
+                "required_level": 3,
+                "gap": 3,
+                "gain": 1,
+                "max_level": 4,
+                "effective_gain": 1,
+                "gap_closed": 1,
+                "projected_level": 1,
+                "critical": false
+              },
+              {
+                "skill_id": "SK_UX_RESEARCH",
+                "name": "UX Research",
+                "reviewed_level": 0,
+                "current_level": 0,
+                "required_level": 2,
+                "gap": 2,
+                "gain": 1,
+                "max_level": 3,
+                "effective_gain": 1,
+                "gap_closed": 1,
+                "projected_level": 1,
+                "critical": false
+              }
+            ],
+            "history": {
+              "counts": {
+                "completed": 0,
+                "no_show": 0,
+                "dropped": 0,
+                "declined": 0,
+                "in_progress": 0,
+                "overdue": 0
+              },
+              "fit": 0.5,
+              "signal": "neutral"
+            },
+            "components": {
+              "grade_importance": 1.0,
+              "skill_gap": 0.6,
+              "event_impact": 0.18181818181818182,
+              "history_fit": 0.5
+            },
+            "contributions": {
+              "grade_importance": 0.35,
+              "skill_gap": 0.18,
+              "event_impact": 0.03636363636363637,
+              "history_fit": 0.075
+            },
+            "skill_adjustments": [
+              {
+                "record_id": "R001801",
+                "event_id": "EV_024",
+                "skill_id": "SK_ML_BASICS",
+                "date": "2026-02-13",
+                "before": 2,
+                "after": 3
+              },
+              {
+                "record_id": "R002183",
+                "event_id": "EV_023",
+                "skill_id": "SK_DATA_VIZ",
+                "date": "2026-05-06",
+                "before": 2,
+                "after": 3
+              },
+              {
+                "record_id": "R002183",
+                "event_id": "EV_023",
+                "skill_id": "SK_PUBLIC_SPEAKING",
+                "date": "2026-05-06",
+                "before": 1,
+                "after": 2
+              },
+              {
+                "record_id": "R002620",
+                "event_id": "EV_009",
+                "skill_id": "SK_CLOUD",
+                "date": "2026-08-13",
+                "before": 0,
+                "after": 1
+              },
+              {
+                "record_id": "R002620",
+                "event_id": "EV_009",
+                "skill_id": "SK_CICD",
+                "date": "2026-08-13",
+                "before": 0,
+                "after": 1
+              }
+            ]
+          },
+          "reason": "Цель: Product Manager, Middle. Product Discovery: 0 → 1, требуется 3; разрыв 3, прирост +1; критичен для цели. Requirements Writing: 0 → 1, требуется 3; разрыв 3, прирост +1. UX Research: 0 → 1, требуется 2; разрыв 2, прирост +1. По связанным добровольным активностям: завершено 0, неявок 0, прекращено 0, отказов 0."
+        },
+        {
+          "event_id": "EV_021",
+          "title": "A/B Testing Workshop",
+          "score": 0.5031818181818182,
+          "next_session": "2026-11-19",
+          "duration_hours": 6,
+          "factors": {
+            "current_role": "Data Analyst",
+            "current_grade": "Middle",
+            "target_role": "Product Manager",
+            "target_grade": "Middle",
+            "target_source": "career_goal",
+            "as_of_date": "2026-10-01",
+            "skills": [
+              {
+                "skill_id": "SK_PRODUCT_ANALYTICS",
+                "name": "Product Analytics",
+                "reviewed_level": 2,
+                "current_level": 2,
+                "required_level": 3,
+                "gap": 1,
+                "gain": 1,
+                "max_level": 4,
+                "effective_gain": 1,
+                "gap_closed": 1,
+                "projected_level": 3,
+                "critical": true
+              }
+            ],
+            "history": {
+              "counts": {
+                "completed": 0,
+                "no_show": 0,
+                "dropped": 0,
+                "declined": 0,
+                "in_progress": 0,
+                "overdue": 0
+              },
+              "fit": 0.5,
+              "signal": "neutral"
+            },
+            "components": {
+              "grade_importance": 1.0,
+              "skill_gap": 0.2,
+              "event_impact": 0.09090909090909091,
+              "history_fit": 0.5
+            },
+            "contributions": {
+              "grade_importance": 0.35,
+              "skill_gap": 0.06,
+              "event_impact": 0.018181818181818184,
+              "history_fit": 0.075
+            },
+            "skill_adjustments": [
+              {
+                "record_id": "R001801",
+                "event_id": "EV_024",
+                "skill_id": "SK_ML_BASICS",
+                "date": "2026-02-13",
+                "before": 2,
+                "after": 3
+              },
+              {
+                "record_id": "R002183",
+                "event_id": "EV_023",
+                "skill_id": "SK_DATA_VIZ",
+                "date": "2026-05-06",
+                "before": 2,
+                "after": 3
+              },
+              {
+                "record_id": "R002183",
+                "event_id": "EV_023",
+                "skill_id": "SK_PUBLIC_SPEAKING",
+                "date": "2026-05-06",
+                "before": 1,
+                "after": 2
+              },
+              {
+                "record_id": "R002620",
+                "event_id": "EV_009",
+                "skill_id": "SK_CLOUD",
+                "date": "2026-08-13",
+                "before": 0,
+                "after": 1
+              },
+              {
+                "record_id": "R002620",
+                "event_id": "EV_009",
+                "skill_id": "SK_CICD",
+                "date": "2026-08-13",
+                "before": 0,
+                "after": 1
+              }
+            ]
+          },
+          "reason": "Цель: Product Manager, Middle. Product Analytics: 2 → 3, требуется 3; разрыв 1, прирост +1; критичен для цели. По связанным добровольным активностям: завершено 0, неявок 0, прекращено 0, отказов 0."
+        },
+        {
+          "event_id": "EV_027",
+          "title": "Roadmapping & Agile Planning",
+          "score": 0.46636363636363637,
+          "next_session": "2026-10-22",
+          "duration_hours": 6,
+          "factors": {
+            "current_role": "Data Analyst",
+            "current_grade": "Middle",
+            "target_role": "Product Manager",
+            "target_grade": "Middle",
+            "target_source": "career_goal",
+            "as_of_date": "2026-10-01",
+            "skills": [
+              {
+                "skill_id": "SK_AGILE",
+                "name": "Agile Practices",
+                "reviewed_level": 0,
+                "current_level": 0,
+                "required_level": 3,
+                "gap": 3,
+                "gain": 1,
+                "max_level": 4,
+                "effective_gain": 1,
+                "gap_closed": 1,
+                "projected_level": 1,
+                "critical": false
+              },
+              {
+                "skill_id": "SK_PROJECT_MGMT",
+                "name": "Project Management",
+                "reviewed_level": 0,
+                "current_level": 0,
+                "required_level": 2,
+                "gap": 2,
+                "gain": 1,
+                "max_level": 4,
+                "effective_gain": 1,
+                "gap_closed": 1,
+                "projected_level": 1,
+                "critical": false
+              },
+              {
+                "skill_id": "SK_ROADMAPPING",
+                "name": "Roadmapping & Prioritization",
+                "reviewed_level": 0,
+                "current_level": 0,
+                "required_level": 2,
+                "gap": 2,
+                "gain": 1,
+                "max_level": 4,
+                "effective_gain": 1,
+                "gap_closed": 1,
+                "projected_level": 1,
+                "critical": false
+              },
+              {
+                "skill_id": "SK_STAKEHOLDER_MGMT",
+                "name": "Stakeholder Management",
+                "reviewed_level": 2,
+                "current_level": 2,
+                "required_level": 3,
+                "gap": 1,
+                "gain": 1,
+                "max_level": 4,
+                "effective_gain": 1,
+                "gap_closed": 1,
+                "projected_level": 3,
+                "critical": false
+              }
+            ],
+            "history": {
+              "counts": {
+                "completed": 0,
+                "no_show": 0,
+                "dropped": 0,
+                "declined": 0,
+                "in_progress": 0,
+                "overdue": 0
+              },
+              "fit": 0.5,
+              "signal": "neutral"
+            },
+            "components": {
+              "grade_importance": 0.5,
+              "skill_gap": 0.6,
+              "event_impact": 0.18181818181818182,
+              "history_fit": 0.5
+            },
+            "contributions": {
+              "grade_importance": 0.175,
+              "skill_gap": 0.18,
+              "event_impact": 0.03636363636363637,
+              "history_fit": 0.075
+            },
+            "skill_adjustments": [
+              {
+                "record_id": "R001801",
+                "event_id": "EV_024",
+                "skill_id": "SK_ML_BASICS",
+                "date": "2026-02-13",
+                "before": 2,
+                "after": 3
+              },
+              {
+                "record_id": "R002183",
+                "event_id": "EV_023",
+                "skill_id": "SK_DATA_VIZ",
+                "date": "2026-05-06",
+                "before": 2,
+                "after": 3
+              },
+              {
+                "record_id": "R002183",
+                "event_id": "EV_023",
+                "skill_id": "SK_PUBLIC_SPEAKING",
+                "date": "2026-05-06",
+                "before": 1,
+                "after": 2
+              },
+              {
+                "record_id": "R002620",
+                "event_id": "EV_009",
+                "skill_id": "SK_CLOUD",
+                "date": "2026-08-13",
+                "before": 0,
+                "after": 1
+              },
+              {
+                "record_id": "R002620",
+                "event_id": "EV_009",
+                "skill_id": "SK_CICD",
+                "date": "2026-08-13",
+                "before": 0,
+                "after": 1
+              }
+            ]
+          },
+          "reason": "Цель: Product Manager, Middle. Agile Practices: 0 → 1, требуется 3; разрыв 3, прирост +1. Project Management: 0 → 1, требуется 2; разрыв 2, прирост +1. Roadmapping & Prioritization: 0 → 1, требуется 2; разрыв 2, прирост +1. Stakeholder Management: 2 → 3, требуется 3; разрыв 1, прирост +1. По связанным добровольным активностям: завершено 0, неявок 0, прекращено 0, отказов 0."
+        }
+      ]
+    },
+    {
+      "case": "repeated_no_show",
+      "title": "Повторные пропуски: штраф без запрета",
+      "employee": {
+        "employee_id": "E0151",
+        "full_name": "Daniyar Ismailov",
+        "department": "Human Resources",
+        "role": "HR Business Partner",
+        "grade": "Junior",
+        "manager_id": "E0133",
+        "hire_date": "2025-09-11",
+        "tenure_months": 12,
+        "work_format": "remote",
+        "preferred_language": "ru",
+        "career_goal": null,
+        "skills": {
+          "SK_TALENT_ACQUISITION": 1,
+          "SK_EMPLOYEE_RELATIONS": 0,
+          "SK_LABOR_LAW": 0,
+          "SK_HR_ANALYTICS": 1,
+          "SK_LEARNING_DESIGN": 1,
+          "SK_COMPENSATION": 1,
+          "SK_COMMUNICATION": 2,
+          "SK_PUBLIC_SPEAKING": 0,
+          "SK_WRITTEN_COMMUNICATION": 3,
+          "SK_STAKEHOLDER_MGMT": 0,
+          "SK_LEADERSHIP": 2,
+          "SK_MENTORING": 0,
+          "SK_FEEDBACK": 1,
+          "SK_CONFLICT_RESOLUTION": 0,
+          "SK_TEAMWORK": 2,
+          "SK_EMOTIONAL_INTELLIGENCE": 2,
+          "SK_PROBLEM_SOLVING": 3,
+          "SK_CRITICAL_THINKING": 3,
+          "SK_TIME_MANAGEMENT": 3,
+          "SK_ADAPTABILITY": 2
+        },
+        "last_review_date": "2026-04-14"
+      },
+      "recommendations": [
+        {
+          "event_id": "EV_036",
+          "title": "Public Speaking Club",
+          "score": 0.34249999999999997,
+          "next_session": "2026-10-08",
+          "duration_hours": 2,
+          "factors": {
+            "current_role": "HR Business Partner",
+            "current_grade": "Junior",
+            "target_role": "HR Business Partner",
+            "target_grade": "Middle",
+            "target_source": "next_grade",
+            "as_of_date": "2026-10-01",
+            "skills": [
+              {
+                "skill_id": "SK_PUBLIC_SPEAKING",
+                "name": "Public Speaking",
+                "reviewed_level": 0,
+                "current_level": 0,
+                "required_level": 2,
+                "gap": 2,
+                "gain": 1,
+                "max_level": 4,
+                "effective_gain": 1,
+                "gap_closed": 1,
+                "projected_level": 1,
+                "critical": false
+              }
+            ],
+            "history": {
+              "counts": {
+                "completed": 0,
+                "no_show": 2,
+                "dropped": 0,
+                "declined": 0,
+                "in_progress": 0,
+                "overdue": 0
+              },
+              "fit": 0.25,
+              "signal": "negative"
+            },
+            "components": {
+              "grade_importance": 0.5,
+              "skill_gap": 0.4,
+              "event_impact": 0.05,
+              "history_fit": 0.25
+            },
+            "contributions": {
+              "grade_importance": 0.175,
+              "skill_gap": 0.12,
+              "event_impact": 0.010000000000000002,
+              "history_fit": 0.0375
+            },
+            "skill_adjustments": [
+              {
+                "record_id": "R002148",
+                "event_id": "EV_030",
+                "skill_id": "SK_TALENT_ACQUISITION",
+                "date": "2026-04-20",
+                "before": 1,
+                "after": 2
+              },
+              {
+                "record_id": "R002202",
+                "event_id": "EV_028",
+                "skill_id": "SK_LABOR_LAW",
+                "date": "2026-05-14",
+                "before": 0,
+                "after": 1
+              },
+              {
+                "record_id": "R002202",
+                "event_id": "EV_028",
+                "skill_id": "SK_EMPLOYEE_RELATIONS",
+                "date": "2026-05-14",
+                "before": 0,
+                "after": 1
+              },
+              {
+                "record_id": "R002647",
+                "event_id": "EV_039",
+                "skill_id": "SK_TIME_MANAGEMENT",
+                "date": "2026-08-26",
+                "before": 3,
+                "after": 4
+              },
+              {
+                "record_id": "R002647",
+                "event_id": "EV_039",
+                "skill_id": "SK_ADAPTABILITY",
+                "date": "2026-08-26",
+                "before": 2,
+                "after": 3
+              }
+            ]
+          },
+          "reason": "Цель: HR Business Partner, Middle. Public Speaking: 0 → 1, требуется 2; разрыв 2, прирост +1. По связанным добровольным активностям: завершено 0, неявок 2, прекращено 0, отказов 0."
+        }
+      ],
+      "comparison": {
+        "label": "Моделирование: только две неявки EV_036 исключены из расчёта",
+        "removed_records": [
+          {
+            "record_id": "R001584",
+            "employee_id": "E0151",
+            "event_id": "EV_036",
+            "date": "2025-12-02",
+            "due_date": "",
+            "status": "no_show",
+            "completion_pct": "0",
+            "score": "",
+            "feedback_rating": "",
+            "assigned_by": "manager"
+          },
+          {
+            "record_id": "R002490",
+            "employee_id": "E0151",
+            "event_id": "EV_036",
+            "date": "2026-06-22",
+            "due_date": "",
+            "status": "no_show",
+            "completion_pct": "0",
+            "score": "",
+            "feedback_rating": "",
+            "assigned_by": "manager"
+          }
+        ],
+        "recommendations": [
+          {
+            "event_id": "EV_036",
+            "title": "Public Speaking Club",
+            "score": 0.38,
+            "next_session": "2026-10-08",
+            "duration_hours": 2,
+            "factors": {
+              "current_role": "HR Business Partner",
+              "current_grade": "Junior",
+              "target_role": "HR Business Partner",
+              "target_grade": "Middle",
+              "target_source": "next_grade",
+              "as_of_date": "2026-10-01",
+              "skills": [
+                {
+                  "skill_id": "SK_PUBLIC_SPEAKING",
+                  "name": "Public Speaking",
+                  "reviewed_level": 0,
+                  "current_level": 0,
+                  "required_level": 2,
+                  "gap": 2,
+                  "gain": 1,
+                  "max_level": 4,
+                  "effective_gain": 1,
+                  "gap_closed": 1,
+                  "projected_level": 1,
+                  "critical": false
+                }
+              ],
+              "history": {
+                "counts": {
+                  "completed": 0,
+                  "no_show": 0,
+                  "dropped": 0,
+                  "declined": 0,
+                  "in_progress": 0,
+                  "overdue": 0
+                },
+                "fit": 0.5,
+                "signal": "neutral"
+              },
+              "components": {
+                "grade_importance": 0.5,
+                "skill_gap": 0.4,
+                "event_impact": 0.05,
+                "history_fit": 0.5
+              },
+              "contributions": {
+                "grade_importance": 0.175,
+                "skill_gap": 0.12,
+                "event_impact": 0.010000000000000002,
+                "history_fit": 0.075
+              },
+              "skill_adjustments": [
+                {
+                  "record_id": "R002148",
+                  "event_id": "EV_030",
+                  "skill_id": "SK_TALENT_ACQUISITION",
+                  "date": "2026-04-20",
+                  "before": 1,
+                  "after": 2
+                },
+                {
+                  "record_id": "R002202",
+                  "event_id": "EV_028",
+                  "skill_id": "SK_LABOR_LAW",
+                  "date": "2026-05-14",
+                  "before": 0,
+                  "after": 1
+                },
+                {
+                  "record_id": "R002202",
+                  "event_id": "EV_028",
+                  "skill_id": "SK_EMPLOYEE_RELATIONS",
+                  "date": "2026-05-14",
+                  "before": 0,
+                  "after": 1
+                },
+                {
+                  "record_id": "R002647",
+                  "event_id": "EV_039",
+                  "skill_id": "SK_TIME_MANAGEMENT",
+                  "date": "2026-08-26",
+                  "before": 3,
+                  "after": 4
+                },
+                {
+                  "record_id": "R002647",
+                  "event_id": "EV_039",
+                  "skill_id": "SK_ADAPTABILITY",
+                  "date": "2026-08-26",
+                  "before": 2,
+                  "after": 3
+                }
+              ]
+            },
+            "reason": "Цель: HR Business Partner, Middle. Public Speaking: 0 → 1, требуется 2; разрыв 2, прирост +1. По связанным добровольным активностям: завершено 0, неявок 0, прекращено 0, отказов 0."
+          }
+        ]
+      }
+    }
+  ]
+}
