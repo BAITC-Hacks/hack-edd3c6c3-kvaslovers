@@ -9,8 +9,16 @@ const state = {
   skills: [],
   history: [],
   recommendations: [],
-  selectedRecommendation: null
+  selectedRecommendation: null,
+  showAllSkills: false,
+  showAllHistory: false,
+  employeeLimit: 20,
+  profileRequest: 0
 };
+
+function setLoading(active) {
+  document.querySelector('#loading-overlay').classList.toggle('hidden', !active);
+}
 
 async function api(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -59,6 +67,8 @@ function applyProfile(payload) {
     const progress = Math.max(0, Math.min(100, Math.round(trajectory.completion_pct || 0)));
     document.querySelector('#trajectory-percent').textContent = `${progress}%`;
     document.querySelector('#trajectory-bar').style.width = `${progress}%`;
+    document.querySelector('.line-track i').style.width = `${progress}%`;
+    document.querySelector('.line-track b').style.left = `${Math.max(2, progress - 2)}%`;
     state.skills = trajectory.skills || [];
     renderSkills();
     const focus = state.skills.find(skill => skill.gap > 0);
@@ -78,20 +88,27 @@ function renderSkills() {
     list.innerHTML = '<p class="empty-state">No skill requirements are available for this career target.</p>';
     return;
   }
-  list.innerHTML = state.skills.slice(0, 5).map(skill => {
+  const visible = state.showAllSkills ? state.skills : state.skills.slice(0, 5);
+  list.innerHTML = visible.map(skill => {
     const level = Number(skill.current_level || 0);
     const required = Number(skill.required_level || 0);
     const width = required > 0 ? Math.max(0, Math.min(100, level / required * 100)) : 0;
     const name = skill.name || humanizeSkillId(skill.skill_id);
     return `<div class="skill-row"><div class="skill-name">${escapeHTML(name)}<small>${skill.critical ? 'Promotion-critical' : 'Career skill'}</small></div><div class="skill-track"><i style="width:${width}%"></i></div><div class="skill-score">${level}<em>/${required}</em></div></div>`;
   }).join('');
+  document.querySelector('#profile-toggle').innerHTML = state.showAllSkills
+    ? 'Show priority skills <span>↑</span>' : `View full profile (${state.skills.length}) <span>→</span>`;
 }
 
 function renderHistory() {
   const list = document.querySelector('#history-list');
-  list.innerHTML = state.history.length ? state.history.map(item =>
+  const visible = state.showAllHistory ? state.history : state.history.slice(0, 3);
+  list.innerHTML = visible.length ? visible.map(item =>
     `<div class="history-row"><span class="history-icon">${escapeHTML(item.icon || '↗')}</span><div class="history-info"><strong>${escapeHTML(item.title)}</strong><small>${escapeHTML(item.meta)}</small></div><span class="${item.done ? 'status-done' : 'status-progress'}">${escapeHTML(item.label || (item.done ? 'Completed' : 'Up next'))}</span></div>`
   ).join('') : '<p class="empty-state">No activity records yet. Your next step will appear here.</p>';
+  const toggle = document.querySelector('#history-toggle');
+  toggle.classList.toggle('hidden', state.history.length <= 3);
+  toggle.innerHTML = state.showAllHistory ? 'Show recent <span>↑</span>' : 'See all <span>→</span>';
 }
 
 function chooseRecommendation(item) {
@@ -171,29 +188,40 @@ function renderEmployeePicker() {
 
 async function loadEmployee(employeeId, { updateUrl = true } = {}) {
   if (!employeeId) return;
+  const request = ++state.profileRequest;
+  setLoading(true);
   state.employeeId = employeeId;
-  const payload = await api(`/employees/${encodeURIComponent(employeeId)}`);
-  applyProfile(payload);
-  applyRecommendations(payload.recommendations || []);
-  const picker = document.querySelector('#employee-picker');
-  if (picker && [...picker.options].some(option => option.value === employeeId)) picker.value = employeeId;
-  if (updateUrl) {
-    const url = new URL(window.location.href);
-    url.searchParams.set('employee', employeeId);
-    window.history.replaceState({}, '', url);
+  try {
+    const payload = await api(`/employees/${encodeURIComponent(employeeId)}`);
+    if (request !== state.profileRequest) return;
+    applyProfile(payload);
+    applyRecommendations(payload.recommendations || []);
+    const picker = document.querySelector('#employee-picker');
+    if (picker && [...picker.options].some(option => option.value === employeeId)) picker.value = employeeId;
+    if (updateUrl) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('employee', employeeId);
+      window.history.replaceState({}, '', url);
+    }
+  } finally {
+    if (request === state.profileRequest) setLoading(false);
   }
 }
 
 function renderHRRows() {
   const query = document.querySelector('#employee-search').value.toLowerCase().trim();
-  const visible = state.employees.filter(employee =>
+  const matches = state.employees.filter(employee =>
     `${employee.full_name} ${employee.role} ${employee.focus} ${employee.department}`.toLowerCase().includes(query)
   );
+  const visible = matches.slice(0, state.employeeLimit);
   document.querySelector('#employee-rows').innerHTML = visible.map(employee => {
     const initials = employee.full_name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
     const statusClass = employee.has_recommendation ? 'status-done' : employee.status === 'On track' ? 'status-progress' : 'needs-status';
     return `<tr data-employee-id="${escapeHTML(employee.employee_id)}" tabindex="0" aria-label="Open ${escapeHTML(employee.full_name)} profile"><td><div class="employee-cell"><span class="table-avatar">${escapeHTML(initials)}</span>${escapeHTML(employee.full_name)}</div></td><td>${escapeHTML(employee.role)} · ${escapeHTML(employee.grade)}</td><td><span class="focus-pill">${escapeHTML(employee.focus)}</span></td><td>${escapeHTML(employee.last_active)}</td><td class="${statusClass}">${escapeHTML(employee.status)}</td></tr>`;
   }).join('');
+  const loadMore = document.querySelector('#load-more-employees');
+  loadMore.classList.toggle('hidden', visible.length >= matches.length);
+  loadMore.innerHTML = `Show more employees (${matches.length - visible.length}) <span>↓</span>`;
 }
 
 async function loadHR() {
@@ -223,7 +251,10 @@ async function completeActivity() {
 
 document.querySelectorAll('.nav-item').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
 document.querySelector('#complete-button').addEventListener('click', completeActivity);
-document.querySelector('#employee-search').addEventListener('input', renderHRRows);
+document.querySelector('#employee-search').addEventListener('input', () => { state.employeeLimit = 20; renderHRRows(); });
+document.querySelector('#load-more-employees').addEventListener('click', () => { state.employeeLimit += 20; renderHRRows(); });
+document.querySelector('#profile-toggle').addEventListener('click', () => { state.showAllSkills = !state.showAllSkills; renderSkills(); });
+document.querySelector('#history-toggle').addEventListener('click', () => { state.showAllHistory = !state.showAllHistory; renderHistory(); });
 document.querySelector('#employee-picker').addEventListener('change', event => {
   loadEmployee(event.target.value).catch(error => toast(error.message));
 });
