@@ -319,5 +319,38 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.request('POST', '/api/datasets/upload', bad_payload, hr)[0], 422)
         self.assertEqual(before, {eid: len(self.store.history(eid)) for eid in before})
 
+    def test_malformed_catalog_rolls_back_and_keeps_profile_usable(self):
+        hr = self.login('hr')
+        before = self.store.profile('E0002')
+        variants = [
+            {'skills': {'skills': None, 'role_profiles': []}},
+            {'employees': {'meta': None, 'employees': []}},
+        ]
+        bad_skills = copy.deepcopy(self.store.skills)
+        del bad_skills['skills'][0]['type']
+        variants.append({'skills': bad_skills})
+        bad_events = copy.deepcopy(self.store.events)
+        bad_events[0]['mandatory'] = 'false'
+        variants.append({'events': bad_events})
+        for payload in variants:
+            with self.subTest(payload_type=list(payload)):
+                self.assertEqual(self.request('POST', '/api/import', payload, hr)[0], 422)
+                self.assertEqual(self.store.profile('E0002'), before)
+
+    def test_expired_and_replaced_employee_invites_are_rejected(self):
+        employee = self.fresh_employee('EXPIRED_INVITE')
+        self.store.import_data({'employees': [employee]})
+        eid = employee['employee_id']
+        expired = self.store.create_registration_invite(eid, 'hr', ttl_seconds=-1)
+        with self.assertRaises(Problem) as error:
+            self.store.register('expired_signup', 'temporary-password', 'employee', expired['token'])
+        self.assertEqual(error.exception.status, 403)
+        replaced = self.store.create_registration_invite(eid, 'hr')
+        current = self.store.create_registration_invite(eid, 'hr')
+        with self.assertRaises(Problem):
+            self.store.register('replaced_signup', 'temporary-password', 'employee', replaced['token'])
+        result = self.store.register('valid_invite_signup', 'temporary-password', 'employee', current['token'])
+        self.assertEqual(result['employee_id'], eid)
+
 
 if __name__=='__main__': unittest.main()

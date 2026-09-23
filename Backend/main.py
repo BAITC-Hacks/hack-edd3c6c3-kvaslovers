@@ -200,12 +200,13 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     parser = argparse.ArgumentParser(description='Career Quest: локальное приложение хакатона')
+    parser.add_argument('--host', default='127.0.0.1', help='127.0.0.1 for local use; 0.0.0.0 for a trusted LAN')
     parser.add_argument('--port', type=int, default=8000)
     parser.add_argument('--db', type=Path, default=ROOT / '.local/career_quest.sqlite3')
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format='%(message)s')
     store = Store(args.db)
-    server = AppServer(('127.0.0.1', args.port), store)
+    server = AppServer((args.host, args.port), store)
     print(f'Career Quest: http://127.0.0.1:{server.server_port}', flush=True)
     print(f'Логины и пароли: {args.db.parent / "credentials.json"}', flush=True)
     print('Дата учебного среза: ' + store.as_of + '. Ctrl+C — остановить.', flush=True)

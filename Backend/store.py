@@ -358,6 +358,10 @@ class Store:
                     'no_next_step': no_steps, 'inactive_90_days': inactive, 'participation': participation}
 
     def import_data(self, payload):
+        with self.lock:
+            return self._import_data(payload)
+
+    def _import_data(self, payload):
         """Validate and merge compatible dataset files as one SQLite transaction."""
         if not isinstance(payload, dict):
             raise Problem(422, 'Ожидается объект с файлами набора данных')
@@ -370,11 +374,17 @@ class Store:
                     raise Problem(422, f'Некорректный JSON: {label}') from exc
             return value
 
+        def checked_meta(document):
+            meta = document.get('meta', {})
+            if not isinstance(meta, dict):
+                raise Problem(422, 'meta должен быть объектом')
+            return meta
+
         employees_data = parse_json(payload.get('employees', []), 'employees.json')
         events_data = parse_json(payload.get('events'), 'events.json')
         skills_data = parse_json(payload.get('skills'), 'skills.json')
         if isinstance(employees_data, dict):
-            if employees_data.get('meta', {}).get('as_of_date', self.as_of) != self.as_of:
+            if checked_meta(employees_data).get('as_of_date', self.as_of) != self.as_of:
                 raise Problem(422, 'Дата employees.json должна совпадать с датой среза')
             employees = employees_data.get('employees')
         else:
@@ -383,7 +393,7 @@ class Store:
             candidate_events = self.events
             catalog_events_received = 0
         elif isinstance(events_data, dict):
-            if events_data.get('meta', {}).get('as_of_date', self.as_of) != self.as_of:
+            if checked_meta(events_data).get('as_of_date', self.as_of) != self.as_of:
                 raise Problem(422, 'Дата events.json должна совпадать с датой среза')
             candidate_events = events_data.get('events')
             catalog_events_received = len(candidate_events) if isinstance(candidate_events, list) else 0
@@ -394,10 +404,12 @@ class Store:
             candidate_skills = self.skills
             catalog_skills_received = 0
         elif isinstance(skills_data, dict):
-            if skills_data.get('meta', {}).get('as_of_date', self.as_of) != self.as_of:
+            if checked_meta(skills_data).get('as_of_date', self.as_of) != self.as_of:
                 raise Problem(422, 'Дата skills.json должна совпадать с датой среза')
             candidate_skills = skills_data
-            catalog_skills_received = len(skills_data.get('skills', []))
+            if not isinstance(skills_data.get('skills'), list) or not isinstance(skills_data.get('role_profiles'), list):
+                raise Problem(422, 'skills и role_profiles должны быть массивами')
+            catalog_skills_received = len(skills_data['skills'])
         else:
             raise Problem(422, 'skills.json должен содержать объект каталога')
 
@@ -424,6 +436,24 @@ class Store:
             current_history = {r['record_id']: r for r in self.history()}
             seen = set()
             try:
+                for skill in candidate_skills['skills']:
+                    if not isinstance(skill, dict) or any(not isinstance(skill.get(k), str) or not skill[k] for k in ('skill_id', 'name', 'type')):
+                        raise ValueError('Навык должен содержать skill_id, name и type')
+                for event in candidate_events:
+                    if not isinstance(event, dict) or any(not isinstance(event.get(k), str) or not event[k] for k in ('event_id', 'title', 'format')):
+                        raise ValueError('Событие должно содержать event_id, title и format')
+                    if not isinstance(event.get('mandatory'), bool):
+                        raise ValueError('mandatory должен быть boolean')
+                    for key in ('target_roles', 'target_grades', 'upcoming_sessions', 'develops_skills'):
+                        if not isinstance(event.get(key), list):
+                            raise ValueError(key + ' должен быть массивом')
+                    if not isinstance(event.get('prerequisites'), dict):
+                        raise ValueError('prerequisites должен быть объектом')
+                    for session in event['upcoming_sessions']:
+                        date.fromisoformat(session)
+                    duration = event.get('duration_hours')
+                    if isinstance(duration, bool) or not isinstance(duration, (int, float)) or not 0 <= duration < 100000:
+                        raise ValueError('Некорректная duration_hours')
                 known_profiles = {(p['role'], p['grade']) for p in candidate_skills['role_profiles']}
                 known_skills = {s['skill_id'] for s in candidate_skills['skills']}
                 event_ids = {e['event_id'] for e in candidate_events}
@@ -487,7 +517,8 @@ class Store:
                 merged_rows = list(current_history.values())
                 for eid in affected:
                     recommend(current_employees[eid], candidate_events, candidate_skills, merged_rows, as_of_date=self.as_of)
-            except (ValueError, TypeError, KeyError, StopIteration) as exc:
+                    trajectory(current_employees[eid], candidate_events, candidate_skills, merged_rows, self.as_of)
+            except (ValueError, TypeError, KeyError, AttributeError, StopIteration) as exc:
                 raise Problem(422, 'Импорт отклонён: ' + str(exc)) from exc
 
             with self.db:

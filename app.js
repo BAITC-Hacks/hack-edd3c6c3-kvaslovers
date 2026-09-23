@@ -80,13 +80,28 @@ function renderProfile(profile) {
   $('#progress-formula').textContent = trajectory.formula;
   $('#skill-caption').textContent = `Критических разрывов: ${trajectory.critical_gaps}. Показаны все навыки профиля и цели.`;
   $('#skills-list').innerHTML = trajectory.skills.map(s => `<div class="skill-row"><div class="skill-name">${escapeHTML(s.name)}<small>${s.critical ? 'Критический для цели' : s.required ? 'Нужен для цели' : 'Вне требований цели'}</small></div><div class="skill-track"><i style="width:${Math.min(100, s.level / (s.required || 5) * 100)}%"></i></div><div class="skill-score">${s.level}<em>/${s.required || '—'}</em></div></div>`).join('');
+  $('#skills-list').classList.add('collapsed-skills'); $('#history-list').classList.add('collapsed-history');
+  $('#toggle-skills').textContent = 'Все навыки'; $('#toggle-skills').setAttribute('aria-expanded', 'false');
+  $('#toggle-history').textContent = 'Вся история'; $('#toggle-history').setAttribute('aria-expanded', 'false');
+  $('#toggle-skills').classList.toggle('hidden', trajectory.skills.length <= 8);
+  $('#toggle-history').classList.toggle('hidden', history.length <= 6);
   renderRecommendations(profile.recommendations);
   $('#llm-status').textContent = ''; $('#llm-button').disabled = false; $('#llm-button').classList.toggle('hidden', !profile.recommendations.length);
   $('#history-count').textContent = `${history.length} записей`;
   $('#history-list').innerHTML = history.length ? history.map(r => `<div class="history-row"><span class="history-icon">${r.status === 'completed' ? '✓' : '·'}</span><div class="history-info"><strong>${escapeHTML(r.title)}</strong><small>${escapeHTML(r.date)} · ${escapeHTML(r.event_id)} · ${escapeHTML(r.completion_pct)}%</small></div><span class="${r.status === 'completed' ? 'status-done' : 'status-progress'}">${escapeHTML(statusNames[r.status] || r.status)}</span></div>`).join('') : '<p class="empty-state">Истории участия пока нет.</p>';
 }
+function compactReason(item) {
+  const f = item.factors, skill = f.skills[0], h = f.history.counts;
+  const rows = [
+    ['Цель', `${f.target_role} · ${f.target_grade}`],
+    ['Главный разрыв', `${skill.name}: ${skill.current_level} из ${skill.required_level}${skill.critical ? ' · критический' : ''}`],
+    ['Эффект', f.skills.map(s => `${s.name}: ${s.current_level} → ${s.projected_level}`).join('; ')],
+    ['История', `Завершено: ${h.completed}; неявок: ${h.no_show}; прекращено: ${h.dropped}; отказов: ${h.declined}.`]
+  ];
+  return `<dl class="compact-reason">${rows.map(([label,value]) => `<div><dt>${escapeHTML(label)}</dt><dd>${escapeHTML(value)}</dd></div>`).join('')}</dl>`;
+}
 function renderRecommendations(items) {
-  $('#recommendation-list').innerHTML = items.length ? items.map((r,i) => `<article class="panel next-panel"><div class="panel-head"><div><h3>Следующий шаг ${i+1}</h3><p>Оценка ${r.score.toFixed(4)} · ${escapeHTML(r.event_id)}</p></div><span class="sparkle">✦</span></div><div class="activity-type">${r.duration_hours} ЧАСОВ · ${r.next_session ? escapeHTML(r.next_session) : 'В СВОЁМ ТЕМПЕ'}</div><h4>${escapeHTML(r.title)}</h4><div class="reason-box"><div class="reason-title">ПОЧЕМУ ЭТА АКТИВНОСТЬ</div><p>${escapeHTML(r.reason)}</p></div><div class="effect-list">${r.factors.skills.map(s => `<div><span>${escapeHTML(s.name)}</span><strong>${s.current_level} → ${s.projected_level}<small> / требуется ${s.required_level}</small></strong></div>`).join('')}</div><details><summary>Как рассчитана оценка</summary><p>Критичность: ${r.factors.contributions.grade_importance.toFixed(4)} · Разрыв: ${r.factors.contributions.skill_gap.toFixed(4)} · Эффект: ${r.factors.contributions.event_impact.toFixed(4)} · История: ${r.factors.contributions.history_fit.toFixed(4)}.</p><p>Баллы помогают сравнить активности и не являются вероятностью повышения.</p></details>${r.llm_reason ? `<div class="llm-note"><strong>Дополнительное объяснение LLM</strong><p>${escapeHTML(r.llm_reason)}</p><small>Сверяйте с рассчитанными фактами выше.</small></div>` : ''}<p class="muted">Учебная симуляция: выполнение сохраняется на дату среза ${escapeHTML(state.profile.as_of_date)}.</p><div class="activity-footer"><span class="activity-tag">Выбор за вами</span><button class="primary-button complete-button" data-event="${escapeHTML(r.event_id)}">Отметить выполненной →</button></div></article>`).join('') : '<article class="panel empty-state"><h3>Подходящих шагов сейчас нет</h3><p>В доступном каталоге нет новых активностей, которые закрывают ваши разрывы. Возможно, требования уже выполнены или нужны другие программы. Обсудите следующий шаг с HR.</p></article>';
+  $('#recommendation-list').innerHTML = items.length ? items.map((r,i) => `<article class="panel next-panel"><div class="panel-head"><div><h3>Следующий шаг ${i+1}</h3><p>Оценка ${r.score.toFixed(4)} · ${escapeHTML(r.event_id)}</p></div><span class="sparkle">✦</span></div><div class="activity-type">${r.duration_hours} ЧАСОВ · ${r.next_session ? escapeHTML(r.next_session) : 'В СВОЁМ ТЕМПЕ'}</div><h4>${escapeHTML(r.title)}</h4><div class="reason-box"><div class="reason-title">ПОЧЕМУ ЭТА АКТИВНОСТЬ</div>${compactReason(r)}<details><summary>Полное объяснение</summary><p>${escapeHTML(r.reason)}</p></details></div><div class="effect-list">${r.factors.skills.map(s => `<div><span>${escapeHTML(s.name)}</span><strong>${s.current_level} → ${s.projected_level}<small> / требуется ${s.required_level}</small></strong></div>`).join('')}</div><details><summary>Как рассчитана оценка</summary><p>Критичность: ${r.factors.contributions.grade_importance.toFixed(4)} · Разрыв: ${r.factors.contributions.skill_gap.toFixed(4)} · Эффект: ${r.factors.contributions.event_impact.toFixed(4)} · История: ${r.factors.contributions.history_fit.toFixed(4)}.</p><p>Баллы помогают сравнить активности и не являются вероятностью повышения.</p></details>${r.llm_reason ? `<div class="llm-note"><strong>Дополнительное объяснение LLM</strong><p>${escapeHTML(r.llm_reason)}</p><small>Сверяйте с рассчитанными фактами выше.</small></div>` : ''}<p class="muted">Учебная симуляция: выполнение сохраняется на дату среза ${escapeHTML(state.profile.as_of_date)}.</p><div class="activity-footer"><span class="activity-tag">Выбор за вами</span><button class="primary-button complete-button" data-event="${escapeHTML(r.event_id)}">Отметить выполненной →</button></div></article>`).join('') : '<article class="panel empty-state"><h3>Подходящих шагов сейчас нет</h3><p>В доступном каталоге нет новых активностей, которые закрывают ваши разрывы. Возможно, требования уже выполнены или нужны другие программы. Обсудите следующий шаг с HR.</p></article>';
 }
 async function loadHR() {
   $('#hr-content').innerHTML = '<p class="empty-state">Собираем обзор команды…</p>';
@@ -203,3 +218,14 @@ $('#llm-button').addEventListener('click', async () => {
 });
 setRegistrationRole();
 api('/api/me').then(enter).catch(error => { if (state.user) showError(error.message); });
+
+for (const [buttonId, listId, className, label] of [
+  ['toggle-skills','skills-list','collapsed-skills','Все навыки'],
+  ['toggle-history','history-list','collapsed-history','Вся история']
+]) {
+  $('#' + buttonId).addEventListener('click', event => {
+    const collapsed = $('#' + listId).classList.toggle(className);
+    event.currentTarget.textContent = collapsed ? label : 'Свернуть';
+    event.currentTarget.setAttribute('aria-expanded', String(!collapsed));
+  });
+}
