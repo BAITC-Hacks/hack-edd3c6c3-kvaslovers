@@ -95,8 +95,6 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, file.read_bytes(), content_type=mime + '; charset=utf-8')
         if method == 'GET' and path == '/health':
             return self.send(200, {'status': 'ok'})
-        if method == 'GET' and path == '/api/registration/profiles':
-            return self.send(200, {'profiles': self.server.store.available_profiles()})
         if method == 'POST':
             origin = self.headers.get('Origin')
             if origin and origin != 'http://' + self.headers.get('Host', ''):
@@ -124,7 +122,7 @@ class Handler(BaseHTTPRequestHandler):
             payload = self.body()
             user = self.server.store.register(
                 payload.get('username'), payload.get('password'), payload.get('role'),
-                payload.get('employee_id'), payload.get('invite_code', ''),
+                payload.get('employee_invite'), payload.get('invite_code', ''),
             )
             now = time.time()
             token, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(24)
@@ -155,7 +153,7 @@ class Handler(BaseHTTPRequestHandler):
                 if missing:
                     raise Problem(422, 'Для загрузки набора нужны файлы: employees.json, events.json, skills.json и activity_history.csv')
             return self.send(200, self.server.store.import_data(payload))
-        match = re.fullmatch(r'/(?:api/)?employees/([^/]+)(?:/(history|recommendations|complete|explanations))?', path)
+        match = re.fullmatch(r'/(?:api/)?employees/([^/]+)(?:/(history|recommendations|complete|explanations|registration-invite))?', path)
         if match:
             employee_id, action = match.groups()
             self.permission(session, employee_id)
@@ -165,6 +163,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, self.server.store.recommendations(employee_id))
             if method == 'GET' and action == 'history':
                 return self.send(200, self.server.store.history_payload(employee_id))
+            if method == 'POST' and action == 'registration-invite':
+                self.permission(session, hr=True)
+                return self.send(201, self.server.store.create_registration_invite(
+                    employee_id, session['user']['username']))
             if method == 'POST' and action == 'complete':
                 payload = self.body()
                 if not isinstance(payload.get('event_id'), str):

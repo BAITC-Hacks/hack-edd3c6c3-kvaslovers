@@ -19,15 +19,15 @@
       <p class="muted">Учебный стенд хакатона. Доступы находятся у организатора вашего запуска. Все профили в наборе синтетические.</p>
     </form>
     <form id="register-form" class="panel login-form hidden">
-      <div class="eyebrow">CAREER QUEST</div><h2>Создать аккаунт</h2><p class="subtitle">Привяжите аккаунт сотрудника к своему профилю или зарегистрируйте доступ HR.</p>
+      <div class="eyebrow">CAREER QUEST</div><h2>Создать аккаунт</h2><p class="subtitle">Сотруднику понадобится персональное приглашение от HR. Доступ HR выдаётся по коду организации.</p>
       <label>Логин<input name="username" autocomplete="username" minlength="3" maxlength="50" pattern="[A-Za-z0-9_.-]+" required></label>
       <label>Пароль<input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="200" required></label>
       <label>Роль<select id="register-role" name="role" required><option value="employee">Сотрудник</option><option value="hr">HR</option></select></label>
-      <label id="register-profile-field">Профиль сотрудника<select id="register-employee-id" name="employee_id" required><option value="">Загружаем свободные профили…</option></select></label>
-      <label id="register-invite-field" class="hidden">Код приглашения HR<input name="invite_code" type="password" autocomplete="off"></label>
+      <label id="register-employee-invite-field">Персональное приглашение сотрудника<input name="employee_invite" type="password" autocomplete="one-time-code" required></label>
+      <label id="register-invite-field" class="hidden">Код приглашения HR<input name="invite_code" type="password" autocomplete="one-time-code"></label>
       <button class="primary-button" type="submit">Зарегистрироваться →</button><p id="register-error" class="error" role="alert"></p>
       <p class="auth-switch">Уже есть аккаунт? <button id="show-login" class="text-button" type="button">Войти</button></p>
-      <p class="muted">Аккаунты и пароли сохраняются в локальной SQLite-базе. Повторно использовать профиль нельзя.</p>
+      <p class="muted">Приглашение сотрудника одноразовое и привязано к одному профилю. Попросите HR создать его в обзоре команды.</p>
     </form>
   </section>
   <div id="workspace" class="hidden">

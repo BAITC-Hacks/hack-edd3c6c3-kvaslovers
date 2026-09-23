@@ -10,8 +10,9 @@ import re
 import secrets
 import sqlite3
 import threading
+import time
 from collections import Counter
-from datetime import date
+from datetime import date, datetime, timezone
 
 from ai.data import load_dataset
 from ai.profile import effective_skills, trajectory
@@ -55,6 +56,8 @@ class Store:
             CREATE TABLE IF NOT EXISTS history (id TEXT PRIMARY KEY, employee_id TEXT NOT NULL REFERENCES employees(id), data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, salt TEXT NOT NULL, hash TEXT NOT NULL, role TEXT NOT NULL, employee_id TEXT REFERENCES employees(id));
+            CREATE UNIQUE INDEX IF NOT EXISTS users_employee_unique ON users(employee_id) WHERE employee_id IS NOT NULL;
+            CREATE TABLE IF NOT EXISTS registration_invites (token_hash TEXT PRIMARY KEY, employee_id TEXT NOT NULL REFERENCES employees(id), expires_at INTEGER NOT NULL, created_by TEXT NOT NULL, used_at INTEGER);
             CREATE TABLE IF NOT EXISTS completions (employee_id TEXT NOT NULL, event_id TEXT NOT NULL, day TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY(employee_id,event_id,day));
         ''')
         if not self.db.execute('SELECT 1 FROM metadata LIMIT 1').fetchone():
@@ -93,17 +96,28 @@ class Store:
             raise Problem(401, 'Неверный логин или пароль')
         return {'username': username, 'role': row[2], 'employee_id': row[3]}
 
-    def available_profiles(self):
+    def create_registration_invite(self, employee_id, created_by, ttl_seconds=7 * 24 * 60 * 60):
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        now = int(time.time())
+        expires_at = now + ttl_seconds
         with self.lock:
-            claimed = {row[0] for row in self.db.execute(
-                'SELECT employee_id FROM users WHERE employee_id IS NOT NULL'
-            )}
-            return [
-                {key: employee[key] for key in ('employee_id', 'role', 'grade')}
-                for employee in self.employees() if employee['employee_id'] not in claimed
-            ]
+            self.employee(employee_id)
+            with self.db:
+                if self.db.execute('SELECT 1 FROM users WHERE employee_id=?', (employee_id,)).fetchone():
+                    raise Problem(409, 'У этого профиля уже есть учётная запись')
+                self.db.execute(
+                    'DELETE FROM registration_invites WHERE employee_id=? AND used_at IS NULL',
+                    (employee_id,),
+                )
+                self.db.execute(
+                    'INSERT INTO registration_invites VALUES (?,?,?,?,NULL)',
+                    (token_hash, employee_id, expires_at, created_by),
+                )
+        return {'employee_id': employee_id, 'token': token,
+                'expires_at': datetime.fromtimestamp(expires_at, timezone.utc).isoformat()}
 
-    def register(self, username, password, role, employee_id=None, invite_code=''):
+    def register(self, username, password, role, employee_invite=None, invite_code=''):
         if not isinstance(username, str) or not re.fullmatch(r'[A-Za-z0-9_.-]{3,50}', username):
             raise Problem(422, 'Логин: от 3 до 50 символов (латиница, цифры, . _ -)')
         if not isinstance(password, str) or not 8 <= len(password) <= 200:
@@ -111,9 +125,9 @@ class Store:
         if role not in ('employee', 'hr'):
             raise Problem(422, 'Выберите роль employee или HR')
         if role == 'employee':
-            if not isinstance(employee_id, str) or not employee_id:
-                raise Problem(422, 'Выберите профиль сотрудника')
-            self.employee(employee_id)
+            if not isinstance(employee_invite, str) or not employee_invite or len(employee_invite) > 200:
+                raise Problem(403, 'Для регистрации сотрудника нужно персональное приглашение HR')
+            employee_id = None
         else:
             expected = os.environ.get('CAREER_QUEST_HR_REGISTRATION_CODE', '')
             provided = invite_code if isinstance(invite_code, str) else ''
@@ -122,17 +136,37 @@ class Store:
             employee_id = None
 
         salt = secrets.token_hex(16)
+        password_digest = password_hash(password, salt)
+        now = int(time.time())
         with self.lock:
             try:
                 with self.db:
                     if self.db.execute('SELECT 1 FROM users WHERE username=?', (username,)).fetchone():
                         raise Problem(409, 'Такой логин уже занят')
+                    if role == 'employee':
+                        token_hash = hashlib.sha256(employee_invite.encode()).hexdigest()
+                        invitation = self.db.execute(
+                            'SELECT employee_id FROM registration_invites '
+                            'WHERE token_hash=? AND used_at IS NULL AND expires_at>?',
+                            (token_hash, now),
+                        ).fetchone()
+                        if not invitation:
+                            raise Problem(403, 'Персональное приглашение недействительно или истекло')
+                        employee_id = invitation[0]
                     if employee_id and self.db.execute('SELECT 1 FROM users WHERE employee_id=?', (employee_id,)).fetchone():
                         raise Problem(409, 'Этот профиль уже связан с учётной записью')
                     self.db.execute(
                         'INSERT INTO users VALUES (?,?,?,?,?)',
-                        (username, salt, password_hash(password, salt), role, employee_id),
+                        (username, salt, password_digest, role, employee_id),
                     )
+                    if role == 'employee':
+                        consumed = self.db.execute(
+                            'UPDATE registration_invites SET used_at=? '
+                            'WHERE token_hash=? AND used_at IS NULL AND expires_at>?',
+                            (now, token_hash, now),
+                        )
+                        if consumed.rowcount != 1:
+                            raise Problem(403, 'Персональное приглашение уже использовано или истекло')
             except sqlite3.IntegrityError as exc:
                 raise Problem(409, 'Логин или профиль уже используется') from exc
         return {'username': username, 'role': role, 'employee_id': employee_id}
@@ -181,6 +215,9 @@ class Store:
             rows = []
             allowed = set(employee_ids) if employee_ids is not None else None
             all_history = self.history()
+            linked_ids = {row[0] for row in self.db.execute(
+                'SELECT employee_id FROM users WHERE employee_id IS NOT NULL'
+            )}
             for employee in self.employees():
                 employee_id = employee['employee_id']
                 if allowed is not None and employee_id not in allowed:
@@ -206,6 +243,7 @@ class Store:
                     'development_status': status,
                     'status': status,
                     'progress_pct': path['progress_pct'],
+                    'has_account': employee_id in linked_ids,
                 })
             return rows
 
@@ -255,6 +293,9 @@ class Store:
             gaps, no_steps, inactive, no_activity, employee_rows = Counter(), [], [], [], []
             progress_values = []
             active_ids = set()
+            linked_ids = {row[0] for row in self.db.execute(
+                'SELECT employee_id FROM users WHERE employee_id IS NOT NULL'
+            )}
             by_employee = {}
             for row in all_history:
                 by_employee.setdefault(row['employee_id'], []).append(row)
@@ -283,7 +324,8 @@ class Store:
                     'activity_status': latest['status'] if latest else None,
                     'development_status': development_status,
                     'status': development_status,
-                    'progress_pct': path['progress_pct']})
+                    'progress_pct': path['progress_pct'],
+                    'has_account': eid in linked_ids})
                 active_dates = [r['date'] for r in rows if r['event_id'] in voluntary and r['status'] == 'completed' and r['date'] <= self.as_of]
                 last = max(active_dates, default=None)
                 if not rows:

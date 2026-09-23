@@ -58,8 +58,9 @@ class AppTests(unittest.TestCase):
 
     def test_access_control_and_static_allowlist(self):
         self.assertEqual(self.request('GET','/api/employees/E0002')[0],401)
-        self.assertEqual(self.request('GET','/api/registration/profiles')[0],200)
+        self.assertEqual(self.request('GET','/api/registration/profiles')[0],401)
         employee = self.login('E0002')
+        self.assertEqual(self.request('GET','/api/registration/profiles',auth=employee)[0],404)
         self.assertEqual(self.request('GET','/api/employees/E0002',auth=employee)[0],200)
         for path in ['/api/employees/E0004','/employees/E0004/recommendations','/api/hr/summary']:
             self.assertEqual(self.request('GET',path,auth=employee)[0],403)
@@ -245,14 +246,34 @@ class AppTests(unittest.TestCase):
         self.assertEqual([row['employee_id'] for row in own_rows], ['E0002'])
         self.assertEqual(self.request('GET', '/api/employees/E0004/history', auth=employee)[0], 403)
 
-    def test_registration_links_employee_and_requires_hr_invite(self):
-        status, available, _ = self.request('GET', '/api/registration/profiles')
-        self.assertEqual(status, 200)
-        self.assertNotIn('E0002', [p['employee_id'] for p in available['profiles']])
-        employee_id = available['profiles'][0]['employee_id']
+    def test_registration_requires_personal_hr_invite_and_cannot_claim_profile(self):
+        linked = {row[0] for row in self.store.db.execute(
+            'SELECT employee_id FROM users WHERE employee_id IS NOT NULL'
+        )}
+        employee_id = next(employee['employee_id'] for employee in self.store.employees()
+                           if employee['employee_id'] not in linked)
+        # Knowing or guessing a real, unclaimed employee_id is not enough to take it.
+        status, _, _ = self.request('POST', '/api/register', {
+            'username': 'signup_attacker', 'password': 'test-password-123',
+            'role': 'employee', 'employee_id': employee_id,
+        })
+        self.assertEqual(status, 403)
+        self.assertIsNone(self.store.db.execute(
+            'SELECT 1 FROM users WHERE username=?', ('signup_attacker',)
+        ).fetchone())
+        employee = self.login('E0002')
+        self.assertEqual(self.request('POST', f'/api/employees/E0002/registration-invite', {}, employee)[0], 403)
+        hr = self.login('hr')
+        status, invite, _ = self.request(
+            'POST', f'/api/employees/{employee_id}/registration-invite', {}, hr,
+        )
+        self.assertEqual(status, 201)
+        self.assertEqual(invite['employee_id'], employee_id)
+        self.assertEqual(len(invite['token']), 43)
         status, session, cookie = self.request('POST', '/api/register', {
             'username': 'signup_employee', 'password': 'test-password-123',
-            'role': 'employee', 'employee_id': employee_id,
+            'role': 'employee', 'employee_invite': invite['token'],
+            'employee_id': 'E0002',
         })
         self.assertEqual(status, 201)
         self.assertIn('HttpOnly', cookie)
@@ -261,8 +282,11 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.request('GET', f'/api/employees/{employee_id}', auth=employee_auth)[0], 200)
         self.assertEqual(self.request('POST', '/api/register', {
             'username': 'second_account', 'password': 'test-password-123',
-            'role': 'employee', 'employee_id': employee_id,
-        })[0], 409)
+            'role': 'employee', 'employee_invite': invite['token'],
+        })[0], 403)
+        self.assertEqual(self.request(
+            'POST', f'/api/employees/{employee_id}/registration-invite', {}, hr,
+        )[0], 409)
         self.assertEqual(self.request('POST', '/api/register', {
             'username': 'signup_hr_bad', 'password': 'test-password-123',
             'role': 'hr', 'invite_code': 'wrong-code',
