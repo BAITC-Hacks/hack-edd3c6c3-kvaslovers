@@ -1,6 +1,6 @@
-// Demo data keeps the experience usable before the backend is available.
-// Set window.CAREER_QUEST_API (for example, "http://localhost:8000") to enable live requests.
-const API_BASE = window.CAREER_QUEST_API || '';
+// Demo data remains available when the local API is not running.
+// Override this from the browser console or a small config script when needed.
+const API_BASE = (window.CAREER_QUEST_API || 'http://127.0.0.1:8000/api').replace(/\/$/, '');
 const EMPLOYEE_ID = 'E0002'; // Present in the AI branch's sample dataset.
 const state = {
   progress: 72,
@@ -43,8 +43,9 @@ function humanizeSkillId(id) {
 function escapeHTML(value) {
   return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 }
-function applyProfile(profile) {
-  if (!profile) return;
+function applyProfile(payload) {
+  if (!payload) return;
+  const profile = payload.employee || payload;
   const name = profile.full_name || profile.name;
   if (name) {
     document.querySelector('h1').firstChild.textContent = `Good morning, ${name.split(' ')[0]} `;
@@ -54,9 +55,21 @@ function applyProfile(profile) {
   if (profile.role) {
     document.querySelector('.user-mini small').textContent = `${profile.role} · ${profile.grade || ''}`.trim();
     document.querySelector('.career-current').textContent = profile.grade || 'Current';
-    document.querySelector('.career-next').textContent = profile.career_goal?.target_grade || 'Next level';
+    document.querySelector('.career-next').textContent = payload.trajectory?.target_grade || profile.career_goal?.target_grade || 'Next level';
   }
   if (profile.employee_id) document.querySelector('.hero-label').dataset.employeeId = profile.employee_id;
+  const trajectory = payload.trajectory;
+  if (trajectory) {
+    state.progress = Math.round(trajectory.completion_pct ?? state.progress);
+    document.querySelector('#trajectory-percent').textContent = `${state.progress}%`;
+    document.querySelector('#trajectory-bar').style.width = `${state.progress}%`;
+    state.skills = (trajectory.skills || []).slice(0, 4).map(skill => ({
+      name: skill.name || humanizeSkillId(skill.skill_id),
+      level: skill.current_level ?? 0,
+      required: skill.required_level ?? 0
+    }));
+    renderSkills();
+  }
 }
 function applyRecommendations(response) {
   const list = Array.isArray(response) ? response : response?.recommendations;
@@ -90,17 +103,40 @@ function applyRecommendations(response) {
   }
 }
 async function loadLiveProfile() {
-  if (!API_BASE) return;
   try {
-    const [profile, results] = await Promise.all([
-      api(`/employees/${EMPLOYEE_ID}`),
-      api('/recommend', { method: 'POST', body: JSON.stringify({ employee_id: EMPLOYEE_ID }) })
-    ]);
+    const profile = await api(`/employees/${EMPLOYEE_ID}`);
     applyProfile(profile);
-    applyRecommendations(results);
+    applyRecommendations(profile.recommendations || (await api(`/employees/${EMPLOYEE_ID}/recommendations`)));
   } catch (error) {
     toast('Backend unavailable — showing demo data.');
     console.warn('Career Quest API is not available:', error);
+  }
+}
+async function loadLiveHR() {
+  try {
+    const summary = await api('/hr/summary');
+    if (!summary) return;
+    document.querySelectorAll('.metric-value')[0].textContent = summary.employees;
+    document.querySelectorAll('.metric-value')[2].textContent = summary.employees_without_recommendation;
+    document.querySelector('#gap-list').innerHTML = (summary.skills_with_gaps || []).slice(0, 5).map(skill => {
+      const width = Math.max(8, Math.round(skill.employees / Math.max(1, summary.employees) * 100));
+      return `<div class="gap-row"><div class="skill-name">${escapeHTML(skill.name)}</div><div class="skill-track"><i style="width:${width}%"></i></div><div class="gap-count">${skill.employees}</div></div>`;
+    }).join('');
+    document.querySelector('#participation-list').innerHTML = (summary.participation || []).slice(0, 4).map(item => {
+      const pct = Math.round(item.participants / Math.max(1, summary.employees) * 100);
+      return `<div class="participation-row"><div class="skill-name">${escapeHTML(item.title)}</div><div class="split-bar"><i style="width:${pct}%"></i></div><div class="skill-score">${pct}%</div></div>`;
+    }).join('');
+    const listing = await api('/employees');
+    state.employees = (listing.employees || []).slice(0, 12).map(person => ({
+      initials: (person.full_name || person.employee_id).split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(),
+      name: person.full_name || person.employee_id,
+      role: person.role,
+      focus: person.career_goal?.target_grade ? `Goal: ${person.career_goal.target_grade}` : `${person.grade} development`,
+      active: `${person.tenure_months} months in role`
+    }));
+    renderEmployees();
+  } catch (error) {
+    console.warn('Career Quest HR API is not available:', error);
   }
 }
 function renderSkills() {
@@ -126,13 +162,17 @@ async function completeActivity() {
   button.disabled = true; button.textContent = 'Updating progress…';
   try {
     // Expected integration endpoint; replace when the backend contract is finalized.
-    await api(`/employees/${EMPLOYEE_ID}/complete/${recommendation.event_id}`, { method: 'POST' });
+    const result = await api(`/employees/${EMPLOYEE_ID}/activities/${recommendation.event_id}/complete`, { method: 'POST', body: JSON.stringify({}) });
     state.completed = true;
-    const target = state.skills.find(s => s.name === recommendation.skill);
-    if (target) target.level = Math.min(target.required, target.level + recommendation.gain);
-    state.progress = Math.min(100, state.progress + 7);
-    document.querySelector('#trajectory-percent').textContent = `${state.progress}%`;
-    document.querySelector('#trajectory-bar').style.width = `${state.progress}%`;
+    if (result?.profile) applyProfile(result.profile);
+    else {
+      const target = state.skills.find(s => s.name === recommendation.skill);
+      if (target) target.level = Math.min(target.required, target.level + recommendation.gain);
+      state.progress = Math.min(100, state.progress + 7);
+      document.querySelector('#trajectory-percent').textContent = `${state.progress}%`;
+      document.querySelector('#trajectory-bar').style.width = `${state.progress}%`;
+    }
+    if (result?.recommendations) applyRecommendations(result.recommendations);
     state.history = state.history.map(row => row.title === recommendation.title ? { ...row, meta: 'Completed · Just now', icon: '✓', done: true } : row);
     renderSkills(); renderHistory();
     button.textContent = 'Completed ✓'; button.classList.add('complete');
@@ -154,5 +194,5 @@ document.querySelector('#employee-search').addEventListener('input', renderEmplo
 document.querySelector('#activity-title').textContent = recommendation.title;
 document.querySelector('.activity-desc').textContent = recommendation.description;
 renderSkills(); renderReasons(); renderHistory(); renderHR();
-loadLiveProfile();
+loadLiveProfile(); loadLiveHR();
 
