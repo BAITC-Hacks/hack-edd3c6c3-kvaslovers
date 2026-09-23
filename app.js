@@ -1,198 +1,278 @@
-// Demo data remains available when the local API is not running.
-// Override this from the browser console or a small config script when needed.
-const API_BASE = (window.CAREER_QUEST_API || 'http://127.0.0.1:8000/api').replace(/\/$/, '');
-const EMPLOYEE_ID = 'E0002'; // Present in the AI branch's sample dataset.
+const DEFAULT_API_BASE = window.location.protocol === 'file:'
+  ? 'http://127.0.0.1:8000/api'
+  : `${window.location.origin}/api`;
+const API_BASE = (window.CAREER_QUEST_API || DEFAULT_API_BASE).replace(/\/$/, '');
+const DEFAULT_EMPLOYEE_ID = new URLSearchParams(window.location.search).get('employee') || 'E0002';
 const state = {
-  progress: 72,
-  completed: false,
-  skills: [
-    { name: 'System Design', level: 2, required: 4 },
-    { name: 'Python', level: 3, required: 4 },
-    { name: 'Public Speaking', level: 2, required: 3 },
-    { name: 'Mentoring', level: 3, required: 4 }
-  ],
-  history: [
-    { title: 'Code Quality Foundations', meta: 'Completed · Sep 12, 2026', icon: '✓', done: true },
-    { title: 'Peer Mentoring Session', meta: 'Completed · Aug 28, 2026', icon: '↗', done: true },
-    { title: 'System Design Workshop', meta: 'Recommended · 45 min', icon: '✦', done: false }
-  ],
-  employees: [
-    { initials: 'JM', name: 'Jordan Miller', role: 'Product Designer', focus: 'Stakeholder Communication', active: '32 days ago' },
-    { initials: 'SN', name: 'Samira Noor', role: 'Data Analyst', focus: 'Data Storytelling', active: '45 days ago' },
-    { initials: 'DL', name: 'Daniel Lee', role: 'Software Engineer', focus: 'System Design', active: '38 days ago' },
-    { initials: 'AR', name: 'Amina Rakhim', role: 'Business Analyst', focus: 'Leadership', active: '51 days ago' }
-  ]
+  employeeId: DEFAULT_EMPLOYEE_ID,
+  employees: [],
+  skills: [],
+  history: [],
+  recommendations: [],
+  selectedRecommendation: null
 };
 
-const recommendation = {
-  event_id: 'EV_012', title: 'System Design Workshop',
-  description: 'Build confidence designing resilient, scalable systems with real-world architecture challenges.',
-  skill: 'System Design', gain: 1,
-  reason: ['System Design is 2/4 for your Senior requirements', 'This workshop directly develops that skill (+1 level)', 'You have not completed this activity yet']
-};
+async function api(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    ...options
+  });
+  const payload = response.status === 204 ? null : await response.json();
+  if (!response.ok) throw new Error(payload?.error || `API request failed (${response.status})`);
+  return payload;
+}
 
-async function api(path, options) {
-  if (!API_BASE) return null;
-  const response = await fetch(`${API_BASE}${path}`, { headers: { 'Content-Type': 'application/json' }, ...options });
-  if (!response.ok) throw new Error(`API request failed (${response.status})`);
-  return response.status === 204 ? null : response.json();
-}
-function humanizeSkillId(id) {
-  return id.replace(/^SK_/, '').toLowerCase().split('_').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
-}
 function escapeHTML(value) {
-  return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
 }
+
+function humanizeSkillId(id) {
+  return String(id || '').replace(/^SK_/, '').toLowerCase()
+    .split('_').map(word => word ? word[0].toUpperCase() + word.slice(1) : '').join(' ');
+}
+
+function toast(message) {
+  const element = document.querySelector('#toast');
+  element.textContent = message;
+  element.classList.add('show');
+  window.setTimeout(() => element.classList.remove('show'), 3200);
+}
+
 function applyProfile(payload) {
   if (!payload) return;
   const profile = payload.employee || payload;
-  const name = profile.full_name || profile.name;
-  if (name) {
-    document.querySelector('h1').firstChild.textContent = `Good morning, ${name.split(' ')[0]} `;
-    document.querySelectorAll('.user-mini strong').forEach(el => el.textContent = name);
-    document.querySelectorAll('.avatar').forEach(el => el.textContent = name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase());
-  }
-  if (profile.role) {
-    document.querySelector('.user-mini small').textContent = `${profile.role} · ${profile.grade || ''}`.trim();
-    document.querySelector('.career-current').textContent = profile.grade || 'Current';
-    document.querySelector('.career-next').textContent = payload.trajectory?.target_grade || profile.career_goal?.target_grade || 'Next level';
-  }
-  if (profile.employee_id) document.querySelector('.hero-label').dataset.employeeId = profile.employee_id;
+  const firstName = (profile.full_name || profile.name || 'there').split(/\s+/)[0];
+  document.querySelector('h1').firstChild.textContent = `Good morning, ${firstName} `;
+  document.querySelectorAll('.user-mini strong').forEach(el => { el.textContent = profile.full_name || profile.name || 'Employee'; });
+  document.querySelectorAll('.avatar').forEach(el => {
+    el.textContent = (profile.full_name || profile.name || 'CQ').split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
+  });
+  document.querySelector('.user-mini small').textContent = `${profile.role || ''} · ${profile.grade || ''}`.trim();
+  document.querySelector('.career-current').textContent = profile.grade || 'Current';
   const trajectory = payload.trajectory;
   if (trajectory) {
-    state.progress = Math.round(trajectory.completion_pct ?? state.progress);
-    document.querySelector('#trajectory-percent').textContent = `${state.progress}%`;
-    document.querySelector('#trajectory-bar').style.width = `${state.progress}%`;
-    state.skills = (trajectory.skills || []).slice(0, 4).map(skill => ({
-      name: skill.name || humanizeSkillId(skill.skill_id),
-      level: skill.current_level ?? 0,
-      required: skill.required_level ?? 0
-    }));
+    document.querySelector('.career-next').textContent = trajectory.target_role === profile.role
+      ? trajectory.target_grade : `${trajectory.target_role} · ${trajectory.target_grade}`;
+    document.querySelector('#target-grade-label').textContent = `${trajectory.target_grade}`;
+    const progress = Math.max(0, Math.min(100, Math.round(trajectory.completion_pct || 0)));
+    document.querySelector('#trajectory-percent').textContent = `${progress}%`;
+    document.querySelector('#trajectory-bar').style.width = `${progress}%`;
+    state.skills = trajectory.skills || [];
     renderSkills();
+    const focus = state.skills.find(skill => skill.gap > 0);
+    document.querySelector('#skill-opportunity').innerHTML = focus
+      ? `<b>${escapeHTML(focus.name || humanizeSkillId(focus.skill_id))}</b> is your largest current gap (${focus.current_level}/${focus.required_level}).`
+      : 'You meet the listed requirements for this career target.';
+  }
+  if (Array.isArray(payload.recent_activity)) {
+    state.history = payload.recent_activity;
+    renderHistory();
   }
 }
+
+function renderSkills() {
+  const list = document.querySelector('#skills-list');
+  if (!state.skills.length) {
+    list.innerHTML = '<p class="empty-state">No skill requirements are available for this career target.</p>';
+    return;
+  }
+  list.innerHTML = state.skills.slice(0, 5).map(skill => {
+    const level = Number(skill.current_level || 0);
+    const required = Number(skill.required_level || 0);
+    const width = required > 0 ? Math.max(0, Math.min(100, level / required * 100)) : 0;
+    const name = skill.name || humanizeSkillId(skill.skill_id);
+    return `<div class="skill-row"><div class="skill-name">${escapeHTML(name)}<small>${skill.critical ? 'Promotion-critical' : 'Career skill'}</small></div><div class="skill-track"><i style="width:${width}%"></i></div><div class="skill-score">${level}<em>/${required}</em></div></div>`;
+  }).join('');
+}
+
+function renderHistory() {
+  const list = document.querySelector('#history-list');
+  list.innerHTML = state.history.length ? state.history.map(item =>
+    `<div class="history-row"><span class="history-icon">${escapeHTML(item.icon || '↗')}</span><div class="history-info"><strong>${escapeHTML(item.title)}</strong><small>${escapeHTML(item.meta)}</small></div><span class="${item.done ? 'status-done' : 'status-progress'}">${escapeHTML(item.label || (item.done ? 'Completed' : 'Up next'))}</span></div>`
+  ).join('') : '<p class="empty-state">No activity records yet. Your next step will appear here.</p>';
+}
+
+function chooseRecommendation(item) {
+  state.selectedRecommendation = item;
+  const effects = item.factors?.skills || [];
+  const leadEffect = effects.find(effect => effect.effective_gain > 0) || effects[0];
+  const title = item.title || item.event_title || item.event_id;
+  document.querySelector('#activity-title').textContent = title;
+  document.querySelector('.activity-desc').textContent = item.description || (leadEffect
+    ? `${leadEffect.name}: ${leadEffect.current_level} → ${leadEffect.projected_level}; ${leadEffect.required_level} required for ${item.factors?.target_grade || 'your career target'}.`
+    : 'Selected from your career goals, skill gaps, and activity history.');
+  document.querySelector('.activity-tag').textContent = leadEffect
+    ? `+${leadEffect.effective_gain} ${leadEffect.name}` : `Match score ${Math.round(item.score * 100)}%`;
+  const duration = Number(item.duration_hours || 0);
+  document.querySelector('#activity-type').innerHTML = `<span>↗</span> DEVELOPMENT · ${duration ? `${duration} HOUR${duration === 1 ? '' : 'S'}` : 'SELF-PACED'}`;
+  const reasons = Array.isArray(item.reason) ? item.reason : item.reason ? [item.reason] : [];
+  document.querySelector('#reason-list').innerHTML = reasons.length
+    ? reasons.map(reason => `<li>${escapeHTML(reason)}</li>`).join('')
+    : '<li>Selected based on your target grade, skill gaps, and activity history.</li>';
+  document.querySelectorAll('.recommendation-option').forEach(button => {
+    button.classList.toggle('selected', button.dataset.eventId === item.event_id);
+  });
+  const completeButton = document.querySelector('#complete-button');
+  completeButton.disabled = false;
+  completeButton.classList.remove('complete');
+  completeButton.innerHTML = 'Mark as complete <span>→</span>';
+}
+
 function applyRecommendations(response) {
   const list = Array.isArray(response) ? response : response?.recommendations;
   if (!Array.isArray(list)) return;
-  const item = list[0];
-  if (!item) {
+  state.recommendations = list;
+  const options = document.querySelector('#recommendation-options');
+  const button = document.querySelector('#complete-button');
+  if (!list.length) {
+    state.selectedRecommendation = null;
+    options.innerHTML = '';
     document.querySelector('#activity-title').textContent = 'No next step yet';
     document.querySelector('.activity-desc').textContent = 'There are no eligible activities for this profile right now.';
-    document.querySelector('#reason-list').innerHTML = '<li>Check back after your profile or available activities are updated.</li>';
-    document.querySelector('#complete-button').disabled = true;
+    document.querySelector('#activity-type').innerHTML = '<span>✦</span> CAREER QUEST';
+    document.querySelector('#reason-list').innerHTML = '<li>You have no current skill gaps with an available activity, or the catalogue has no eligible next step.</li>';
+    document.querySelector('.activity-tag').textContent = 'No activity available';
+    button.disabled = true;
     return;
   }
-  Object.assign(recommendation, item);
-  recommendation.title = item.title || item.event_title || item.event_id;
-  const effects = item.factors?.skills || [];
-  const leadEffect = effects.find(effect => effect.effective_gain > 0) || effects[0];
-  recommendation.skill = leadEffect?.name || (leadEffect?.skill_id ? humanizeSkillId(leadEffect.skill_id) : 'Skill');
-  recommendation.gain = leadEffect?.effective_gain ?? leadEffect?.gain ?? 1;
-  document.querySelector('#activity-title').textContent = recommendation.title;
-  document.querySelector('.activity-desc').textContent = item.description || (leadEffect ? `${leadEffect.name}: ${leadEffect.current_level} → ${leadEffect.projected_level}, with ${leadEffect.required_level} required for ${item.factors?.target_grade || 'your next level'}.` : 'Recommended based on your career goals, skill gaps, and activity history.');
-  document.querySelector('.activity-tag').textContent = leadEffect ? `+${recommendation.gain} ${recommendation.skill}` : 'Recommended for you';
-  const reasons = Array.isArray(item.reason) ? item.reason : item.reason ? [item.reason] : effects.slice(0, 3).map(effect => `${effect.name}: ${effect.current_level} → ${effect.projected_level}, ${effect.required_level} required`);
-  document.querySelector('#reason-list').innerHTML = reasons.map(reason => `<li>${escapeHTML(reason)}</li>`).join('');
-  if (effects.length) {
-    state.skills = effects.map(effect => ({
-      name: effect.name || humanizeSkillId(effect.skill_id),
-      level: effect.current_level ?? 0,
-      required: effect.required_level ?? effect.current_level ?? 0
-    }));
-    renderSkills();
-  }
+  options.innerHTML = list.map((item, index) => {
+    const effect = item.factors?.skills?.[0];
+    const title = item.title || item.event_title || item.event_id;
+    const skill = effect?.name || humanizeSkillId(effect?.skill_id);
+    return `<button class="recommendation-option${index === 0 ? ' selected' : ''}" type="button" data-event-id="${escapeHTML(item.event_id)}"><span><strong>${escapeHTML(title)}</strong><small>${escapeHTML(skill)} · ${Math.round(item.score * 100)}% match</small></span><span class="option-arrow">→</span></button>`;
+  }).join('');
+  options.querySelectorAll('.recommendation-option').forEach(button => button.addEventListener('click', () => {
+    const selected = list.find(item => item.event_id === button.dataset.eventId);
+    if (selected) chooseRecommendation(selected);
+  }));
+  chooseRecommendation(list[0]);
 }
-async function loadLiveProfile() {
-  try {
-    const profile = await api(`/employees/${EMPLOYEE_ID}`);
-    applyProfile(profile);
-    applyRecommendations(profile.recommendations || (await api(`/employees/${EMPLOYEE_ID}/recommendations`)));
-  } catch (error) {
-    toast('Backend unavailable — showing demo data.');
-    console.warn('Career Quest API is not available:', error);
-  }
-}
-async function loadLiveHR() {
-  try {
-    const summary = await api('/hr/summary');
-    if (!summary) return;
-    document.querySelectorAll('.metric-value')[0].textContent = summary.employees;
-    document.querySelectorAll('.metric-value')[2].textContent = summary.employees_without_recommendation;
-    document.querySelector('#gap-list').innerHTML = (summary.skills_with_gaps || []).slice(0, 5).map(skill => {
-      const width = Math.max(8, Math.round(skill.employees / Math.max(1, summary.employees) * 100));
-      return `<div class="gap-row"><div class="skill-name">${escapeHTML(skill.name)}</div><div class="skill-track"><i style="width:${width}%"></i></div><div class="gap-count">${skill.employees}</div></div>`;
-    }).join('');
-    document.querySelector('#participation-list').innerHTML = (summary.participation || []).slice(0, 4).map(item => {
-      const pct = Math.round(item.participants / Math.max(1, summary.employees) * 100);
-      return `<div class="participation-row"><div class="skill-name">${escapeHTML(item.title)}</div><div class="split-bar"><i style="width:${pct}%"></i></div><div class="skill-score">${pct}%</div></div>`;
-    }).join('');
-    const listing = await api('/employees');
-    state.employees = (listing.employees || []).slice(0, 12).map(person => ({
-      initials: (person.full_name || person.employee_id).split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(),
-      name: person.full_name || person.employee_id,
-      role: person.role,
-      focus: person.career_goal?.target_grade ? `Goal: ${person.career_goal.target_grade}` : `${person.grade} development`,
-      active: `${person.tenure_months} months in role`
-    }));
-    renderEmployees();
-  } catch (error) {
-    console.warn('Career Quest HR API is not available:', error);
-  }
-}
-function renderSkills() {
-  document.querySelector('#skills-list').innerHTML = state.skills.map(skill => `<div class="skill-row"><div class="skill-name">${skill.name}<small>${skill.name === 'System Design' ? 'Priority skill' : 'Career skill'}</small></div><div class="skill-track"><i style="width:${Math.min(100, skill.level / skill.required * 100)}%"></i></div><div class="skill-score">${skill.level}<em>/${skill.required}</em></div></div>`).join('');
-}
-function renderReasons() { document.querySelector('#reason-list').innerHTML = recommendation.reason.map(item => `<li>${item}</li>`).join(''); }
-function renderHistory() { document.querySelector('#history-list').innerHTML = state.history.map(item => `<div class="history-row"><span class="history-icon">${item.icon}</span><div class="history-info"><strong>${item.title}</strong><small>${item.meta}</small></div><span class="${item.done ? 'status-done' : 'status-progress'}">${item.done ? 'Completed' : 'Up next'}</span></div>`).join(''); }
-function renderHR() {
-  const gaps = [{ name: 'System Design', count: 38, width: 87 }, { name: 'Public Speaking', count: 31, width: 71 }, { name: 'Leadership', count: 27, width: 62 }, { name: 'Data Storytelling', count: 19, width: 44 }, { name: 'Mentoring', count: 14, width: 32 }];
-  document.querySelector('#gap-list').innerHTML = gaps.map(g => `<div class="gap-row"><div class="skill-name">${g.name}</div><div class="skill-track"><i style="width:${g.width}%"></i></div><div class="gap-count">${g.count}</div></div>`).join('');
-  const participation = [{ name: 'Designing for Scale', pct: 72 }, { name: 'Peer Mentoring', pct: 48 }, { name: 'Public Speaking Lab', pct: 36 }, { name: 'Data Storytelling', pct: 64 }];
-  document.querySelector('#participation-list').innerHTML = participation.map(p => `<div class="participation-row"><div class="skill-name">${p.name}</div><div class="split-bar"><i style="width:${p.pct}%"></i></div><div class="skill-score">${p.pct}%</div></div>`).join('');
-  renderEmployees();
-}
-function renderEmployees() {
-  const query = document.querySelector('#employee-search').value.toLowerCase();
-  document.querySelector('#employee-rows').innerHTML = state.employees.filter(e => `${e.name} ${e.role} ${e.focus}`.toLowerCase().includes(query)).map(e => `<tr><td><div class="employee-cell"><span class="table-avatar">${e.initials}</span>${e.name}</div></td><td>${e.role}</td><td><span class="focus-pill">${e.focus}</span></td><td>${e.active}</td><td class="needs-status">Needs a nudge</td></tr>`).join('');
-}
-function toast(message) { const element = document.querySelector('#toast'); element.textContent = message; element.classList.add('show'); setTimeout(() => element.classList.remove('show'), 2800); }
-async function completeActivity() {
-  const button = document.querySelector('#complete-button');
-  if (state.completed) return;
-  button.disabled = true; button.textContent = 'Updating progress…';
-  try {
-    // Expected integration endpoint; replace when the backend contract is finalized.
-    const result = await api(`/employees/${EMPLOYEE_ID}/activities/${recommendation.event_id}/complete`, { method: 'POST', body: JSON.stringify({}) });
-    state.completed = true;
-    if (result?.profile) applyProfile(result.profile);
-    else {
-      const target = state.skills.find(s => s.name === recommendation.skill);
-      if (target) target.level = Math.min(target.required, target.level + recommendation.gain);
-      state.progress = Math.min(100, state.progress + 7);
-      document.querySelector('#trajectory-percent').textContent = `${state.progress}%`;
-      document.querySelector('#trajectory-bar').style.width = `${state.progress}%`;
-    }
-    if (result?.recommendations) applyRecommendations(result.recommendations);
-    state.history = state.history.map(row => row.title === recommendation.title ? { ...row, meta: 'Completed · Just now', icon: '✓', done: true } : row);
-    renderSkills(); renderHistory();
-    button.textContent = 'Completed ✓'; button.classList.add('complete');
-    toast('Nice work — your growth snapshot is updated.');
-  } catch (error) {
-    button.disabled = false; button.textContent = 'Mark as complete →';
-    toast('Could not update progress. Please try again.');
-  }
-}
-document.querySelectorAll('.nav-item').forEach(button => button.addEventListener('click', () => {
-  const showHR = button.dataset.view === 'hr';
+
+function setView(view) {
+  const showHR = view === 'hr';
   document.querySelector('#employee-view').classList.toggle('hidden', showHR);
   document.querySelector('#hr-view').classList.toggle('hidden', !showHR);
-  document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item === button));
+  document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === view));
   document.querySelector('#crumb').textContent = showHR ? 'People insights' : 'My growth';
-}));
-document.querySelector('#complete-button').addEventListener('click', completeActivity);
-document.querySelector('#employee-search').addEventListener('input', renderEmployees);
-document.querySelector('#activity-title').textContent = recommendation.title;
-document.querySelector('.activity-desc').textContent = recommendation.description;
-renderSkills(); renderReasons(); renderHistory(); renderHR();
-loadLiveProfile(); loadLiveHR();
+}
 
+function renderEmployeePicker() {
+  const picker = document.querySelector('#employee-picker');
+  picker.innerHTML = state.employees.map(employee =>
+    `<option value="${escapeHTML(employee.employee_id)}">${escapeHTML(employee.full_name)} · ${escapeHTML(employee.role)} · ${escapeHTML(employee.grade)}</option>`
+  ).join('');
+  if (!state.employees.some(employee => employee.employee_id === state.employeeId)) {
+    state.employeeId = state.employees[0]?.employee_id || DEFAULT_EMPLOYEE_ID;
+  }
+  picker.value = state.employeeId;
+}
+
+async function loadEmployee(employeeId, { updateUrl = true } = {}) {
+  if (!employeeId) return;
+  state.employeeId = employeeId;
+  const payload = await api(`/employees/${encodeURIComponent(employeeId)}`);
+  applyProfile(payload);
+  applyRecommendations(payload.recommendations || []);
+  const picker = document.querySelector('#employee-picker');
+  if (picker && [...picker.options].some(option => option.value === employeeId)) picker.value = employeeId;
+  if (updateUrl) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('employee', employeeId);
+    window.history.replaceState({}, '', url);
+  }
+}
+
+function renderHRRows() {
+  const query = document.querySelector('#employee-search').value.toLowerCase().trim();
+  const visible = state.employees.filter(employee =>
+    `${employee.full_name} ${employee.role} ${employee.focus} ${employee.department}`.toLowerCase().includes(query)
+  );
+  document.querySelector('#employee-rows').innerHTML = visible.map(employee => {
+    const initials = employee.full_name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
+    const statusClass = employee.has_recommendation ? 'status-done' : employee.status === 'On track' ? 'status-progress' : 'needs-status';
+    return `<tr data-employee-id="${escapeHTML(employee.employee_id)}" tabindex="0" aria-label="Open ${escapeHTML(employee.full_name)} profile"><td><div class="employee-cell"><span class="table-avatar">${escapeHTML(initials)}</span>${escapeHTML(employee.full_name)}</div></td><td>${escapeHTML(employee.role)} · ${escapeHTML(employee.grade)}</td><td><span class="focus-pill">${escapeHTML(employee.focus)}</span></td><td>${escapeHTML(employee.last_active)}</td><td class="${statusClass}">${escapeHTML(employee.status)}</td></tr>`;
+  }).join('');
+}
+
+async function loadHR() {
+  applyHR(await api('/hr/summary'));
+}
+
+async function completeActivity() {
+  const recommendation = state.selectedRecommendation;
+  const button = document.querySelector('#complete-button');
+  if (!recommendation) return;
+  button.disabled = true;
+  button.textContent = 'Updating progress…';
+  try {
+    const result = await api(`/employees/${encodeURIComponent(state.employeeId)}/activities/${encodeURIComponent(recommendation.event_id)}/complete`, {
+      method: 'POST', body: JSON.stringify({})
+    });
+    applyProfile(result.profile);
+    applyRecommendations(result.recommendations || []);
+    toast('Progress updated. Your next step is ready.');
+    loadHR().catch(error => console.warn('HR data refresh failed:', error));
+  } catch (error) {
+    button.disabled = false;
+    button.innerHTML = 'Mark as complete <span>→</span>';
+    toast(error.message || 'Could not update progress. Please try again.');
+  }
+}
+
+document.querySelectorAll('.nav-item').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
+document.querySelector('#complete-button').addEventListener('click', completeActivity);
+document.querySelector('#employee-search').addEventListener('input', renderHRRows);
+document.querySelector('#employee-picker').addEventListener('change', event => {
+  loadEmployee(event.target.value).catch(error => toast(error.message));
+});
+document.querySelector('#employee-rows').addEventListener('click', event => {
+  const row = event.target.closest('tr[data-employee-id]');
+  if (!row) return;
+  loadEmployee(row.dataset.employeeId).then(() => setView('employee')).catch(error => toast(error.message));
+});
+document.querySelector('#employee-rows').addEventListener('keydown', event => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const row = event.target.closest('tr[data-employee-id]');
+  if (!row) return;
+  event.preventDefault();
+  loadEmployee(row.dataset.employeeId).then(() => setView('employee')).catch(error => toast(error.message));
+});
+
+async function start() {
+  try {
+    const summary = await api('/hr/summary');
+    applyHR(summary);
+    await loadEmployee(state.employeeId, { updateUrl: false });
+  } catch (error) {
+    toast(`Backend unavailable: ${error.message}`);
+    document.querySelector('#activity-title').textContent = 'Start the Career Quest backend';
+    document.querySelector('.activity-desc').textContent = 'Run “python -m Backend.main” from the project folder, then refresh this page.';
+    document.querySelector('#employee-picker').innerHTML = '<option>Backend unavailable</option>';
+    document.querySelector('#complete-button').disabled = true;
+    console.error('Career Quest failed to load:', error);
+  }
+}
+
+function applyHR(summary) {
+  const metricValues = document.querySelectorAll('.metric-value');
+  metricValues[0].textContent = summary.employees;
+  metricValues[1].textContent = `${summary.active_employees_pct}%`;
+  metricValues[2].textContent = summary.employees_without_recommendation;
+  metricValues[3].innerHTML = `${summary.average_skill_level}<span class="metric-denom"> / 5</span>`;
+  document.querySelector('#gap-list').innerHTML = summary.skills_with_gaps.slice(0, 5).map(skill => {
+    const width = Math.max(8, Math.round(skill.employees / Math.max(1, summary.employees) * 100));
+    return `<div class="gap-row"><div class="skill-name">${escapeHTML(skill.name)}</div><div class="skill-track"><i style="width:${width}%"></i></div><div class="gap-count">${skill.employees}</div></div>`;
+  }).join('') || '<p class="empty-state">No skill gaps found.</p>';
+  document.querySelector('#participation-list').innerHTML = summary.participation
+    .slice().sort((a, b) => b.completion_pct - a.completion_pct).slice(0, 4).map(item => {
+      const pct = Math.max(0, Math.min(100, item.completion_pct));
+      return `<div class="participation-row"><div class="skill-name">${escapeHTML(item.title)}</div><div class="split-bar"><i style="width:${pct}%"></i></div><div class="skill-score">${pct}%</div></div>`;
+    }).join('') || '<p class="empty-state">No voluntary activity records yet.</p>';
+  state.employees = summary.employee_rows || state.employees;
+  renderEmployeePicker();
+  renderHRRows();
+}
+
+start();

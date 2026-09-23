@@ -6,7 +6,7 @@ Run from the repository root with ``python -m Backend.main``.
 import json
 import os
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
@@ -96,6 +96,7 @@ def employee_payload(employee, events, skills, history):
     role, grade, profile = _target(employee, skills)
     levels = _current_levels(employee, events, skills, history)
     names = {skill["skill_id"]: skill["name"] for skill in skills["skills"]}
+    event_names = {event["event_id"]: event["title"] for event in events["events"]}
     critical = set(profile["critical_skills"])
     trajectory = []
     for sid, required in profile["required_skills"].items():
@@ -109,8 +110,33 @@ def employee_payload(employee, events, skills, history):
             "critical": sid in critical,
         })
     trajectory.sort(key=lambda item: (not item["critical"], -item["gap"], item["skill_id"]))
+    status_labels = {
+        "completed": "Completed",
+        "in_progress": "In progress",
+        "dropped": "Dropped",
+        "no_show": "No show",
+        "declined": "Declined",
+        "overdue": "Overdue",
+    }
+    employee_history = sorted(
+        (row for row in history if row["employee_id"] == employee["employee_id"]),
+        key=lambda row: (row["date"], row["record_id"]),
+        reverse=True,
+    )[:5]
+    recent_activity = []
+    for row in employee_history:
+        status = row["status"]
+        activity_date = date.fromisoformat(row["date"]).strftime("%b %d, %Y")
+        recent_activity.append({
+            "title": event_names[row["event_id"]],
+            "meta": f"{status_labels.get(status, status)} · {activity_date}",
+            "label": status_labels.get(status, status),
+            "icon": "✓" if status == "completed" else "↗",
+            "done": status == "completed",
+        })
     return {
         "employee": employee,
+        "recent_activity": recent_activity,
         "trajectory": {
             "target_role": role,
             "target_grade": grade,
@@ -131,27 +157,65 @@ def hr_summary(employees, events, skills, history):
     names = {skill["skill_id"]: skill["name"] for skill in skills["skills"]}
     deficits = {sid: 0 for sid in names}
     employees_without_steps = 0
+    employee_rows = []
+    skill_levels = []
+    active_employee_ids = set()
+    snapshot = date.fromisoformat(skills["meta"]["as_of_date"])
+    active_after = snapshot - timedelta(days=90)
+    history_by_employee = {}
+    events_by_id = {event["event_id"]: event for event in events["events"]}
+    for row in history:
+        history_by_employee.setdefault(row["employee_id"], []).append(row)
     for employee in employees["employees"]:
         _, _, profile = _target(employee, skills)
         levels = _current_levels(employee, events, skills, history)
         gaps = [sid for sid, required in profile["required_skills"].items()
                 if levels.get(sid, 0) < required]
+        gaps.sort(key=lambda sid: (sid not in profile["critical_skills"],
+                                   -(profile["required_skills"][sid] - levels.get(sid, 0)), sid))
+        skill_levels.extend(levels.get(sid, 0) for sid in profile["required_skills"])
         for sid in gaps:
             deficits[sid] += 1
-        if gaps and not _recommendations(employee, events, skills, history):
+        options = _recommendations(employee, events, skills, history)
+        if gaps and not options:
             employees_without_steps += 1
+        person_history = history_by_employee.get(employee["employee_id"], [])
+        recent = max(person_history, key=lambda row: (row["date"], row["record_id"]), default=None)
+        if any(not events_by_id[row["event_id"]]["mandatory"]
+               and row["status"] in {"completed", "in_progress", "dropped"}
+               and date.fromisoformat(row["date"]) >= active_after
+               for row in person_history
+               ):
+            active_employee_ids.add(employee["employee_id"])
+        focus = names[gaps[0]] if gaps else "No current skill gap"
+        employee_rows.append({
+            "employee_id": employee["employee_id"],
+            "full_name": employee["full_name"],
+            "role": employee["role"],
+            "grade": employee["grade"],
+            "department": employee["department"],
+            "tenure_months": employee["tenure_months"],
+            "focus": focus,
+            "last_active": recent["date"] if recent else "No activity",
+            "status": "Needs an alternative" if gaps and not options
+                     else "Development step available" if options else "On track",
+            "has_recommendation": bool(options),
+        })
     participation = {}
-    events_by_id = {event["event_id"]: event for event in events["events"]}
     for row in history:
         event = events_by_id[row["event_id"]]
         if event["mandatory"]:
             continue
         item = participation.setdefault(row["event_id"], {"event_id": row["event_id"],
-            "title": event["title"], "participants": set(), "completed": 0})
+            "title": event["title"], "participants": set(), "completed": 0, "records": 0})
         item["participants"].add(row["employee_id"])
         item["completed"] += row["status"] == "completed"
+        item["records"] += 1
     return {
         "employees": len(employees["employees"]),
+        "active_employees_pct": round(100 * len(active_employee_ids) / max(1, len(employees["employees"]))),
+        "average_skill_level": round(sum(skill_levels) / max(1, len(skill_levels)), 1),
+        "employee_rows": employee_rows,
         "skills_with_gaps": [
             {"skill_id": sid, "name": names[sid], "employees": count}
             for sid, count in sorted(deficits.items(), key=lambda pair: (-pair[1], pair[0])) if count
@@ -159,7 +223,8 @@ def hr_summary(employees, events, skills, history):
         "employees_without_recommendation": employees_without_steps,
         "participation": [
             {"event_id": item["event_id"], "title": item["title"],
-             "participants": len(item["participants"]), "completed_records": item["completed"]}
+             "participants": len(item["participants"]), "completed_records": item["completed"],
+             "completion_pct": round(100 * item["completed"] / max(1, item["records"])) }
             for item in sorted(participation.values(), key=lambda item: item["event_id"])
         ],
     }
@@ -193,6 +258,21 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = unquote(parsed.path)
         query = parse_qs(parsed.query)
+        static_files = {
+            "/": ("index.html", "text/html; charset=utf-8"),
+            "/index.html": ("index.html", "text/html; charset=utf-8"),
+            "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+            "/styles.css": ("styles.css", "text/css; charset=utf-8"),
+        }
+        if path in static_files:
+            filename, content_type = static_files[path]
+            body = (ROOT / filename).read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         try:
             if path == "/api/health":
                 return self._send(200, {"status": "ok", "data_dir": str(DATA_DIR)})
