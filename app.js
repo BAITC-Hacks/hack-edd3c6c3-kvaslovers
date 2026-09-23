@@ -1,6 +1,7 @@
 // Demo data keeps the experience usable before the backend is available.
-// Set window.CAREER_QUEST_API to your API base URL to enable live requests.
+// Set window.CAREER_QUEST_API (for example, "http://localhost:8000") to enable live requests.
 const API_BASE = window.CAREER_QUEST_API || '';
+const EMPLOYEE_ID = 'E0002'; // Present in the AI branch's sample dataset.
 const state = {
   progress: 72,
   completed: false,
@@ -24,7 +25,7 @@ const state = {
 };
 
 const recommendation = {
-  event_id: 'EV012', title: 'System Design Workshop',
+  event_id: 'EV_012', title: 'System Design Workshop',
   description: 'Build confidence designing resilient, scalable systems with real-world architecture challenges.',
   skill: 'System Design', gain: 1,
   reason: ['System Design is 2/4 for your Senior requirements', 'This workshop directly develops that skill (+1 level)', 'You have not completed this activity yet']
@@ -35,6 +36,72 @@ async function api(path, options) {
   const response = await fetch(`${API_BASE}${path}`, { headers: { 'Content-Type': 'application/json' }, ...options });
   if (!response.ok) throw new Error(`API request failed (${response.status})`);
   return response.status === 204 ? null : response.json();
+}
+function humanizeSkillId(id) {
+  return id.replace(/^SK_/, '').toLowerCase().split('_').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
+}
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+}
+function applyProfile(profile) {
+  if (!profile) return;
+  const name = profile.full_name || profile.name;
+  if (name) {
+    document.querySelector('h1').firstChild.textContent = `Good morning, ${name.split(' ')[0]} `;
+    document.querySelectorAll('.user-mini strong').forEach(el => el.textContent = name);
+    document.querySelectorAll('.avatar').forEach(el => el.textContent = name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase());
+  }
+  if (profile.role) {
+    document.querySelector('.user-mini small').textContent = `${profile.role} · ${profile.grade || ''}`.trim();
+    document.querySelector('.career-current').textContent = profile.grade || 'Current';
+    document.querySelector('.career-next').textContent = profile.career_goal?.target_grade || 'Next level';
+  }
+  if (profile.employee_id) document.querySelector('.hero-label').dataset.employeeId = profile.employee_id;
+}
+function applyRecommendations(response) {
+  const list = Array.isArray(response) ? response : response?.recommendations;
+  if (!Array.isArray(list)) return;
+  const item = list[0];
+  if (!item) {
+    document.querySelector('#activity-title').textContent = 'No next step yet';
+    document.querySelector('.activity-desc').textContent = 'There are no eligible activities for this profile right now.';
+    document.querySelector('#reason-list').innerHTML = '<li>Check back after your profile or available activities are updated.</li>';
+    document.querySelector('#complete-button').disabled = true;
+    return;
+  }
+  Object.assign(recommendation, item);
+  recommendation.title = item.title || item.event_title || item.event_id;
+  const effects = item.factors?.skills || [];
+  const leadEffect = effects.find(effect => effect.effective_gain > 0) || effects[0];
+  recommendation.skill = leadEffect?.name || (leadEffect?.skill_id ? humanizeSkillId(leadEffect.skill_id) : 'Skill');
+  recommendation.gain = leadEffect?.effective_gain ?? leadEffect?.gain ?? 1;
+  document.querySelector('#activity-title').textContent = recommendation.title;
+  document.querySelector('.activity-desc').textContent = item.description || (leadEffect ? `${leadEffect.name}: ${leadEffect.current_level} → ${leadEffect.projected_level}, with ${leadEffect.required_level} required for ${item.factors?.target_grade || 'your next level'}.` : 'Recommended based on your career goals, skill gaps, and activity history.');
+  document.querySelector('.activity-tag').textContent = leadEffect ? `+${recommendation.gain} ${recommendation.skill}` : 'Recommended for you';
+  const reasons = Array.isArray(item.reason) ? item.reason : item.reason ? [item.reason] : effects.slice(0, 3).map(effect => `${effect.name}: ${effect.current_level} → ${effect.projected_level}, ${effect.required_level} required`);
+  document.querySelector('#reason-list').innerHTML = reasons.map(reason => `<li>${escapeHTML(reason)}</li>`).join('');
+  if (effects.length) {
+    state.skills = effects.map(effect => ({
+      name: effect.name || humanizeSkillId(effect.skill_id),
+      level: effect.current_level ?? 0,
+      required: effect.required_level ?? effect.current_level ?? 0
+    }));
+    renderSkills();
+  }
+}
+async function loadLiveProfile() {
+  if (!API_BASE) return;
+  try {
+    const [profile, results] = await Promise.all([
+      api(`/employees/${EMPLOYEE_ID}`),
+      api('/recommend', { method: 'POST', body: JSON.stringify({ employee_id: EMPLOYEE_ID }) })
+    ]);
+    applyProfile(profile);
+    applyRecommendations(results);
+  } catch (error) {
+    toast('Backend unavailable — showing demo data.');
+    console.warn('Career Quest API is not available:', error);
+  }
 }
 function renderSkills() {
   document.querySelector('#skills-list').innerHTML = state.skills.map(skill => `<div class="skill-row"><div class="skill-name">${skill.name}<small>${skill.name === 'System Design' ? 'Priority skill' : 'Career skill'}</small></div><div class="skill-track"><i style="width:${Math.min(100, skill.level / skill.required * 100)}%"></i></div><div class="skill-score">${skill.level}<em>/${skill.required}</em></div></div>`).join('');
@@ -59,7 +126,7 @@ async function completeActivity() {
   button.disabled = true; button.textContent = 'Updating progress…';
   try {
     // Expected integration endpoint; replace when the backend contract is finalized.
-    await api(`/employees/E0028/complete/${recommendation.event_id}`, { method: 'POST' });
+    await api(`/employees/${EMPLOYEE_ID}/complete/${recommendation.event_id}`, { method: 'POST' });
     state.completed = true;
     const target = state.skills.find(s => s.name === recommendation.skill);
     if (target) target.level = Math.min(target.required, target.level + recommendation.gain);
@@ -87,4 +154,5 @@ document.querySelector('#employee-search').addEventListener('input', renderEmplo
 document.querySelector('#activity-title').textContent = recommendation.title;
 document.querySelector('.activity-desc').textContent = recommendation.description;
 renderSkills(); renderReasons(); renderHistory(); renderHR();
+loadLiveProfile();
 
